@@ -17,14 +17,14 @@ import type { Tab } from "./types";
 
 export const MCPTab: Tab = ({ settings, onChange }) => {
   const [servers, setServers] = useState<MCPServerMetadata[]>(
-    settings.mcp.servers,
+    settings.mcpServers || [],
   );
   const [newlyAdded, setNewlyAdded] = useState(false);
   const handleAddServers = useCallback(
     (servers: MCPServerMetadata[]) => {
-      const merged = mergeServers(settings.mcp.servers, servers);
+      const merged = mergeServers(settings.mcpServers || [], servers);
       setServers(merged);
-      onChange({ ...settings, mcp: { ...settings.mcp, servers: merged } });
+      onChange({ ...settings, mcpServers: merged });
       setNewlyAdded(true);
       setTimeout(() => {
         setNewlyAdded(false);
@@ -40,21 +40,21 @@ export const MCPTab: Tab = ({ settings, onChange }) => {
   );
   const handleDeleteServer = useCallback(
     (name: string) => {
-      const merged = settings.mcp.servers.filter(
+      const merged = (settings.mcpServers || []).filter(
         (server) => server.name !== name,
       );
       setServers(merged);
-      onChange({ ...settings, mcp: { ...settings.mcp, servers: merged } });
+      onChange({ ...settings, mcpServers: merged });
     },
     [onChange, settings],
   );
   const handleToggleServer = useCallback(
     (name: string, enabled: boolean) => {
-      const merged = settings.mcp.servers.map((server) =>
+      const merged = (settings.mcpServers || []).map((server) =>
         server.name === name ? { ...server, enabled } : server,
       );
       setServers(merged);
-      onChange({ ...settings, mcp: { ...settings.mcp, servers: merged } });
+      onChange({ ...settings, mcpServers: merged });
     },
     [onChange, settings],
   );
