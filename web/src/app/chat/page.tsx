@@ -1,3 +1,4 @@
+
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -6,14 +7,23 @@
 import { GithubOutlined } from "@ant-design/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useState } from "react"; 
+import { Spline, MessageSquareText } from "lucide-react"; // Import MessageSquareText
+
+import { Suspense, useState } from "react";
+import { Spline } from "lucide-react"; // Import the Spline icon
 
 import { Button } from "~/components/ui/button";
+import { useStore } from "~/core/store"; 
+
+import { useStore } from "~/core/store"; // Import useStore
 
 import { Logo } from "../../components/deer-flow/logo";
 import { ThemeToggle } from "../../components/deer-flow/theme-toggle";
 import { Tooltip } from "../../components/deer-flow/tooltip";
 import { SettingsDialog } from "../settings/dialogs/settings-dialog";
+import { KnowledgeGraphModal } from "./components/knowledge-graph-modal"; 
+import { GraphChatbotModal } from "./components/GraphChatbotModal"; // Import the new modal
 
 const Main = dynamic(() => import("./main"), {
   ssr: false,
@@ -25,6 +35,10 @@ const Main = dynamic(() => import("./main"), {
 });
 
 export default function HomePage() {
+  const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
+  const [isGraphChatbotModalOpen, setIsGraphChatbotModalOpen] = useState(false); // New state for chatbot modal
+  const threadId = useStore((state) => state.threadId);
+
   return (
     <div className="flex h-screen w-screen justify-center overscroll-none">
       <header className="fixed top-0 left-0 flex h-12 w-full items-center justify-between px-4">
@@ -40,6 +54,24 @@ export default function HomePage() {
               </Link>
             </Button>
           </Tooltip>
+          <Tooltip title="View Workflow Graph">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsGraphModalOpen(true)}
+            >
+              <Spline />
+            </Button>
+          </Tooltip>
+          <Tooltip title="Chat about Workflow Graph">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsGraphChatbotModalOpen(true)} // Toggle new modal
+            >
+              <MessageSquareText />
+            </Button>
+          </Tooltip>
           <ThemeToggle />
           <Suspense>
             <SettingsDialog />
@@ -47,6 +79,16 @@ export default function HomePage() {
         </div>
       </header>
       <Main />
+      <KnowledgeGraphModal
+        isOpen={isGraphModalOpen}
+        onClose={() => setIsGraphModalOpen(false)}
+        threadId={threadId}
+      />
+      <GraphChatbotModal
+        isOpen={isGraphChatbotModalOpen}
+        onClose={() => setIsGraphChatbotModalOpen(false)}
+        threadId={threadId}
+      />
     </div>
   );
 }

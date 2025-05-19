@@ -29,6 +29,11 @@ from src.server.chat_request import (
 from src.server.mcp_request import MCPServerMetadataRequest, MCPServerMetadataResponse
 from src.server.mcp_utils import load_mcp_tools
 from src.tools import VolcengineTTS
+from src.graph_visualization.models import KnowledgeGraphResponse
+from src.graph_visualization.serializer import serialize_langgraph_state_for_thread
+from src.server.graph_chatbot_models import GraphChatbotRequest, GraphChatbotResponse
+from src.graph_chatbot.chatbot import answer_graph_question
+
 
 logger = logging.getLogger(__name__)
 
@@ -319,3 +324,60 @@ async def mcp_server_metadata(request: MCPServerMetadataRequest):
             logger.exception(f"Error in MCP server metadata endpoint: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
         raise
+
+
+@app.get("/api/graph_state/{thread_id}", response_model=KnowledgeGraphResponse)
+async def get_graph_state_snapshot(thread_id: str):
+    """
+    Retrieves a snapshot of the graph state for a given thread_id,
+    serialized for visualization.
+    """
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+    
+    try:
+        # The 'graph' instance is already initialized in this file
+        graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
+        return graph_data
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+
+
+@app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
+async def query_graph_chatbot(request: GraphChatbotRequest):
+    """
+    Receives a user's question about the graph state for a specific thread_id
+    and returns an LLM-generated answer based on the graph's current state.
+    """
+    if not request.thread_id:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+    if not request.user_question:
+        raise HTTPException(status_code=400, detail="user_question is required")
+
+    try:
+        # The 'graph' instance is globally available in this file
+        answer = await answer_graph_question(
+            thread_id=request.thread_id,
+            user_question=request.user_question,
+            graph_executable=graph
+        )
+        return GraphChatbotResponse(answer=answer)
+        # The 'graph' instance is already initialized in this file
+        graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
+        return graph_data
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(
+            f"Error processing graph chatbot query for thread {request.thread_id}: {str(e)}",
+            exc_info=True
+        )
+        raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
+
+        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+
+
