@@ -24,7 +24,6 @@ import { cn } from "~/lib/utils";
 import { ConversationStarter } from "./conversation-starter";
 import { InputBox } from "./input-box";
 import { MessageListView } from "./message-list-view";
-import { Welcome } from "./welcome";
 
 export function MessagesBlock({ className }: { className?: string }) {
   const messageIds = useMessageIds();
@@ -102,14 +101,6 @@ export function MessagesBlock({ className }: { className?: string }) {
         </div>
       ) : (
         <>
-          <div
-            className={cn(
-              "fixed bottom-[calc(50vh+80px)] left-0 transition-all duration-500 ease-out",
-              replayStarted && "pointer-events-none scale-150 opacity-0",
-            )}
-          >
-            <Welcome />
-          </div>
           <motion.div
             className="mb-4 h-fit w-full items-center justify-center"
             initial={{ opacity: 0, y: "20vh" }}

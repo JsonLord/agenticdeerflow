@@ -16,7 +16,6 @@ import { ConversationStarter } from "./components/conversation-starter";
 import { InputBox } from "./components/input-box";
 import { MessageListView } from "./components/message-list-view";
 import { ResearchBlock } from "./components/research-block";
-import { Welcome } from "./components/welcome";
 import { PersonaCarouselFrame } from "./components/PersonaCarouselFrame";
 
 interface MainProps {
@@ -56,7 +55,6 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
       >
         {messageIds.length === 0 ? (
           <>
-            <Welcome />
             <ConversationStarter onSubmit={handleSubmit} />
           </>
         ) : (
