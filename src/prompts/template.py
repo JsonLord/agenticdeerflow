@@ -1,4 +1,3 @@
-
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
@@ -10,6 +9,7 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 
 from langgraph.prebuilt.chat_agent_executor import AgentState
+
 # from src.config.configuration import Configuration
 
 # Initialize Jinja2 environment
@@ -20,7 +20,10 @@ env = Environment(
     lstrip_blocks=True,
 )
 
-def get_prompt_template(prompt_name: str, selected_persona: Optional[str] = None) -> jinja2.Template:
+
+def get_prompt_template(
+    prompt_name: str, selected_persona: Optional[str] = None
+) -> jinja2.Template:
     """
     Load and return a Jinja2 template object.
     For 'coordinator' prompt_name, attempts to load a persona-specific template
@@ -40,7 +43,9 @@ def get_prompt_template(prompt_name: str, selected_persona: Optional[str] = None
     if prompt_name == "coordinator":
         default_coordinator_path = os.path.join("coordinator_personas", "default.md")
         if selected_persona:
-            persona_specific_path = os.path.join("coordinator_personas", f"{selected_persona}.md")
+            persona_specific_path = os.path.join(
+                "coordinator_personas", f"{selected_persona}.md"
+            )
             try:
                 # print(f"Attempting to load persona template: {persona_specific_path}") # Debug
                 return env.get_template(persona_specific_path)
@@ -63,12 +68,13 @@ def get_prompt_template(prompt_name: str, selected_persona: Optional[str] = None
         try:
             return env.get_template(template_path_to_try)
         except TemplateNotFound as e:
-            raise ValueError(f"Error loading template '{template_path_to_try}': {e}") from e
+            raise ValueError(
+                f"Error loading template '{template_path_to_try}': {e}"
+            ) from e
+
 
 def apply_prompt_template(
-    prompt_name: str, 
-    state: AgentState, 
-    configurable: Optional[Dict[str, Any]] = None
+    prompt_name: str, state: AgentState, configurable: Optional[Dict[str, Any]] = None
 ) -> list:
     """
     Apply template variables to a prompt template and return formatted messages.
@@ -103,7 +109,7 @@ def apply_prompt_template(
     try:
         template_obj = get_prompt_template(prompt_name, selected_persona)
         system_prompt = template_obj.render(**state_vars)
-        
+
         messages_from_state = state.get("messages", [])
         return [{"role": "system", "content": system_prompt}] + messages_from_state
     except Exception as e:

@@ -3,7 +3,7 @@
 
 from typing import List, Optional, Union
 
-from typing import List, Optional, Union, Dict, Any # Added Dict, Any
+from typing import List, Optional, Union, Dict, Any  # Added Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -56,10 +56,12 @@ class ChatRequest(BaseModel):
         True, description="Whether to get background investigation before plan"
     )
     llm_configurations: Optional[Dict[str, Dict[str, Any]]] = Field(
-        None, description="Runtime LLM configurations for different roles (e.g., basic, reasoning, vision)"
+        None,
+        description="Runtime LLM configurations for different roles (e.g., basic, reasoning, vision)",
     )
     selected_persona: Optional[str] = Field(
-        None, description="The ID of the selected coordinator persona (e.g., 'default', 'analytical_researcher')"
+        None,
+        description="The ID of the selected coordinator persona (e.g., 'default', 'analytical_researcher')",
     )
 
 
@@ -72,7 +74,6 @@ class TTSRequest(BaseModel):
     text_type: Optional[str] = "ssml"
     with_frontend: Optional[bool] = True
     frontend_type: Optional[str] = "unitTson"
-
 
     text: str = Field(..., description="The text to convert to speech")
     voice_type: Optional[str] = Field(
@@ -92,13 +93,11 @@ class TTSRequest(BaseModel):
 class GeneratePodcastRequest(BaseModel):
     content: str
 
-
     content: str = Field(..., description="The content of the podcast")
 
 
 class GeneratePPTRequest(BaseModel):
     content: str
-
 
     content: str = Field(..., description="The content of the ppt")
 
@@ -108,13 +107,14 @@ class GenerateProseRequest(BaseModel):
     content: str
     locale: Optional[str] = "en-US"
     option: Optional[str] = "polish"  # Default to polish
-    command: Optional[str] = "polish" # Default to polish
+    command: Optional[str] = "polish"  # Default to polish
 
 
 class CoordinatorFeedbackRequest(BaseModel):
     """
     Request model for submitting feedback on a coordinator persona.
     """
+
     persona_id: str
     feedback_text: str
 

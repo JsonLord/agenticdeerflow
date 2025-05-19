@@ -1,4 +1,3 @@
-
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
@@ -350,16 +349,22 @@ async def get_graph_state_snapshot(thread_id: str):
     """
     if not thread_id:
         raise HTTPException(status_code=400, detail="thread_id is required")
-    
+
     try:
         # The 'graph' instance is already initialized in this file
         graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
         return graph_data
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
-        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+        logger.error(
+            f"Error generating graph state for thread {thread_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Error generating graph state: {str(e)}"
+        )
+
 
 @app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
 async def query_graph_chatbot(request: GraphChatbotRequest):
@@ -377,20 +382,23 @@ async def query_graph_chatbot(request: GraphChatbotRequest):
         answer = await answer_graph_question(
             thread_id=request.thread_id,
             user_question=request.user_question,
-            graph_executable=graph
+            graph_executable=graph,
         )
         return GraphChatbotResponse(answer=answer)
         # The 'graph' instance is already initialized in this file
         graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
         return graph_data
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
         logger.error(
             f"Error processing graph chatbot query for thread {request.thread_id}: {str(e)}",
-            exc_info=True
+            exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
+        raise HTTPException(
+            status_code=500, detail="Error processing your question about the graph."
+        )
+
 
 @app.post("/api/coordinator_feedback")
 async def submit_coordinator_feedback(request: CoordinatorFeedbackRequest):
@@ -400,16 +408,21 @@ async def submit_coordinator_feedback(request: CoordinatorFeedbackRequest):
     """
     if not request.persona_id:
         raise HTTPException(status_code=400, detail="persona_id is required")
-    if not request.feedback_text: # Also check if feedback_text is empty string after trimming
-        raise HTTPException(status_code=400, detail="feedback_text is required and cannot be empty")
+    if (
+        not request.feedback_text
+    ):  # Also check if feedback_text is empty string after trimming
+        raise HTTPException(
+            status_code=400, detail="feedback_text is required and cannot be empty"
+        )
 
     logger.info(
         f"Coordinator Feedback Received: Persona ID='{request.persona_id}', Feedback='{request.feedback_text}'"
     )
-    
+
     # In a more advanced version, this feedback could be stored in a database,
     # sent to an analytics platform, or used for fine-tuning.
     return {"message": "Feedback received successfully"}
+
 
 @app.get("/api/expert_feedback/{thread_id}", response_model=ExpertFeedbackResponse)
 async def get_expert_feedback_for_thread(thread_id: str):
@@ -422,20 +435,22 @@ async def get_expert_feedback_for_thread(thread_id: str):
     try:
         # The 'graph' instance is globally available in this file (graph_with_memory)
         feedback_response = await generate_expert_feedback(
-            thread_id=thread_id,
-            graph_executable=graph
+            thread_id=thread_id, graph_executable=graph
         )
         return feedback_response
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
         logger.error(
             f"Error generating expert feedback for thread {thread_id}: {str(e)}",
-            exc_info=True
+            exc_info=True,
         )
         # Return a structured error response matching ExpertFeedbackResponse if possible,
         # or a generic server error. For now, a generic server error.
-        raise HTTPException(status_code=500, detail=f"Error generating expert feedback: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error generating expert feedback: {str(e)}"
+        )
+
 
 async def _astream_workflow_generator(
     messages: List[ChatMessage],
@@ -706,16 +721,22 @@ async def get_graph_state_snapshot(thread_id: str):
     """
     if not thread_id:
         raise HTTPException(status_code=400, detail="thread_id is required")
-    
+
     try:
         # The 'graph' instance is already initialized in this file
         graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
         return graph_data
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
-        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+        logger.error(
+            f"Error generating graph state for thread {thread_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Error generating graph state: {str(e)}"
+        )
+
 
 @app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
 async def query_graph_chatbot(request: GraphChatbotRequest):
@@ -733,19 +754,26 @@ async def query_graph_chatbot(request: GraphChatbotRequest):
         answer = await answer_graph_question(
             thread_id=request.thread_id,
             user_question=request.user_question,
-            graph_executable=graph
+            graph_executable=graph,
         )
         return GraphChatbotResponse(answer=answer)
         # The 'graph' instance is already initialized in this file
         graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
         return graph_data
-    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
         logger.error(
             f"Error processing graph chatbot query for thread {request.thread_id}: {str(e)}",
-            exc_info=True
+            exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
-        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Error processing your question about the graph."
+        )
+        logger.error(
+            f"Error generating graph state for thread {thread_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Error generating graph state: {str(e)}"
+        )
