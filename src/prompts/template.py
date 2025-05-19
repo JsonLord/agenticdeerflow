@@ -23,9 +23,9 @@ env = Environment(
 
 def get_prompt_template(
     prompt_name: str, selected_persona: Optional[str] = None
-) -> jinja2.Template:
+) -> str:
     """
-    Load and return a Jinja2 template object.
+    Load and return a prompt template as a string.
     For 'coordinator' prompt_name, attempts to load a persona-specific template
     from the 'coordinator_personas' subdirectory, falling back to a default.
 
@@ -34,7 +34,7 @@ def get_prompt_template(
         selected_persona: Optional persona ID for the coordinator.
 
     Returns:
-        A Jinja2 Template object.
+        A string containing the template content.
 
     Raises:
         ValueError: If the template or its fallback cannot be loaded.
@@ -48,7 +48,8 @@ def get_prompt_template(
             )
             try:
                 # print(f"Attempting to load persona template: {persona_specific_path}") # Debug
-                return env.get_template(persona_specific_path)
+                template = env.get_template(persona_specific_path)
+                return template.source
             except TemplateNotFound:
                 # print(f"Persona template '{persona_specific_path}' not found. Falling back to default.") # Debug
                 pass  # Fall through to load default
@@ -56,7 +57,8 @@ def get_prompt_template(
         # Load default if no persona selected or if persona-specific not found
         try:
             # print(f"Attempting to load default coordinator template: {default_coordinator_path}") # Debug
-            return env.get_template(default_coordinator_path)
+            template = env.get_template(default_coordinator_path)
+            return template.source
         except TemplateNotFound as e_default:
             raise ValueError(
                 f"Error loading default coordinator template '{default_coordinator_path}'. "
@@ -66,7 +68,8 @@ def get_prompt_template(
         # For non-coordinator prompts
         template_path_to_try = f"{prompt_name}.md"
         try:
-            return env.get_template(template_path_to_try)
+            template = env.get_template(template_path_to_try)
+            return template.source
         except TemplateNotFound as e:
             raise ValueError(
                 f"Error loading template '{template_path_to_try}': {e}"
@@ -107,7 +110,8 @@ def apply_prompt_template(
         selected_persona = configurable.get("selected_persona")
 
     try:
-        template_obj = get_prompt_template(prompt_name, selected_persona)
+        template_str = get_prompt_template(prompt_name, selected_persona)
+        template_obj = env.from_string(template_str)
         system_prompt = template_obj.render(**state_vars)
 
         messages_from_state = state.get("messages", [])
