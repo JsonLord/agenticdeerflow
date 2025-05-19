@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -18,6 +17,7 @@ import { InputBox } from "./components/input-box";
 import { MessageListView } from "./components/message-list-view";
 import { ResearchBlock } from "./components/research-block";
 import { Welcome } from "./components/welcome";
+import { PersonaCarouselFrame } from "./components/PersonaCarouselFrame";
 
 interface MainProps {
   onOpenCoordinatorFeedbackModal?: () => void;
@@ -78,6 +78,9 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
           onInterrupt={handleInterrupt}
           onOpenCoordinatorFeedbackModal={onOpenCoordinatorFeedbackModal}
         />
+        <div className="mt-2">
+          <PersonaCarouselFrame />
+        </div>
       </div>
       {openResearchId && (
         <ResearchBlock

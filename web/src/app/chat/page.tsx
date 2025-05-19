@@ -1,4 +1,3 @@
-
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -19,7 +18,6 @@ import { Tooltip } from "../../components/deer-flow/tooltip";
 import { SettingsDialog } from "../settings/dialogs/settings-dialog";
 import { KnowledgeGraphModal } from "./components/knowledge-graph-modal";
 import { GraphChatbotModal } from "./components/GraphChatbotModal";
-import { PersonaCarousel } from "./components/PersonaCarousel";
 import { CoordinatorFeedbackModal } from "./components/CoordinatorFeedbackModal";
 // import { ExpertFeedbackModal } from "./components/ExpertFeedbackModal"; // Will be imported in next task
 
@@ -90,7 +88,6 @@ export default function HomePage() {
           </Suspense>
         </div>
       </header>
-      <PersonaCarousel />
       {/* 
         Pass openCoordinatorFeedbackModal to Main. 
         Main will need to be updated to accept this prop and pass it to InputBox.
