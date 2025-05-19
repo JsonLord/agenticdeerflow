@@ -34,8 +34,9 @@ from src.graph_visualization.models import KnowledgeGraphResponse
 from src.graph_visualization.serializer import serialize_langgraph_state_for_thread
 from src.server.graph_chatbot_models import GraphChatbotRequest, GraphChatbotResponse
 from src.graph_chatbot.chatbot import answer_graph_question
-from src.server.chat_request import CoordinatorFeedbackRequest # New import
-
+from src.server.chat_request import CoordinatorFeedbackRequest
+from src.server.expert_feedback_models import ExpertFeedbackResponse
+from src.expert_feedback.generator import generate_expert_feedback
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +360,7 @@ async def get_graph_state_snapshot(thread_id: str):
     except Exception as e:
         logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+
 @app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
 async def query_graph_chatbot(request: GraphChatbotRequest):
     """
@@ -390,7 +392,6 @@ async def query_graph_chatbot(request: GraphChatbotRequest):
         )
         raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
 
-
 @app.post("/api/coordinator_feedback")
 async def submit_coordinator_feedback(request: CoordinatorFeedbackRequest):
     """
@@ -409,6 +410,32 @@ async def submit_coordinator_feedback(request: CoordinatorFeedbackRequest):
     # In a more advanced version, this feedback could be stored in a database,
     # sent to an analytics platform, or used for fine-tuning.
     return {"message": "Feedback received successfully"}
+
+@app.get("/api/expert_feedback/{thread_id}", response_model=ExpertFeedbackResponse)
+async def get_expert_feedback_for_thread(thread_id: str):
+    """
+    Generates and retrieves expert feedback analysis for a given research thread_id.
+    """
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+
+    try:
+        # The 'graph' instance is globally available in this file (graph_with_memory)
+        feedback_response = await generate_expert_feedback(
+            thread_id=thread_id,
+            graph_executable=graph
+        )
+        return feedback_response
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(
+            f"Error generating expert feedback for thread {thread_id}: {str(e)}",
+            exc_info=True
+        )
+        # Return a structured error response matching ExpertFeedbackResponse if possible,
+        # or a generic server error. For now, a generic server error.
+        raise HTTPException(status_code=500, detail=f"Error generating expert feedback: {str(e)}")
 
 async def _astream_workflow_generator(
     messages: List[ChatMessage],
@@ -689,6 +716,7 @@ async def get_graph_state_snapshot(thread_id: str):
     except Exception as e:
         logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+
 @app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
 async def query_graph_chatbot(request: GraphChatbotRequest):
     """

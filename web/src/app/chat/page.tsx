@@ -7,31 +7,21 @@
 import { GithubOutlined } from "@ant-design/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Suspense, useState } from "react"; 
-import { Spline, MessageSquareText } from "lucide-react"; 
-
-import { Spline, MessageSquareText } from "lucide-react"; // Import MessageSquareText
-
 import { Suspense, useState } from "react";
-import { Spline } from "lucide-react"; // Import the Spline icon
+import { Spline, MessageSquareText, Lightbulb } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
-import { useStore } from "~/core/store"; 
-
-import { useStore } from "~/core/store"; // Import useStore
+import { useStore } from "~/core/store";
 
 import { Logo } from "../../components/deer-flow/logo";
 import { ThemeToggle } from "../../components/deer-flow/theme-toggle";
 import { Tooltip } from "../../components/deer-flow/tooltip";
 import { SettingsDialog } from "../settings/dialogs/settings-dialog";
-import { KnowledgeGraphModal } from "./components/knowledge-graph-modal"; 
-import { GraphChatbotModal } from "./components/GraphChatbotModal"; 
-import { PersonaCarousel } from "./components/PersonaCarousel"; 
-import { CoordinatorFeedbackModal } from "./components/CoordinatorFeedbackModal"; // Import the new modal
-
-import { PersonaCarousel } from "./components/PersonaCarousel"; // Import PersonaCarousel
-
-import { GraphChatbotModal } from "./components/GraphChatbotModal"; // Import the new modal
+import { KnowledgeGraphModal } from "./components/knowledge-graph-modal";
+import { GraphChatbotModal } from "./components/GraphChatbotModal";
+import { PersonaCarousel } from "./components/PersonaCarousel";
+import { CoordinatorFeedbackModal } from "./components/CoordinatorFeedbackModal";
+// import { ExpertFeedbackModal } from "./components/ExpertFeedbackModal"; // Will be imported in next task
 
 const Main = dynamic(() => import("./main"), {
   ssr: false,
@@ -44,9 +34,9 @@ const Main = dynamic(() => import("./main"), {
 
 export default function HomePage() {
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
-  const [isGraphChatbotModalOpen, setIsGraphChatbotModalOpen] = useState(false); 
-  const [isCoordinatorFeedbackModalOpen, setIsCoordinatorFeedbackModalOpen] = useState(false); // New state
-  const [isGraphChatbotModalOpen, setIsGraphChatbotModalOpen] = useState(false); // New state for chatbot modal
+  const [isGraphChatbotModalOpen, setIsGraphChatbotModalOpen] = useState(false);
+  const [isCoordinatorFeedbackModalOpen, setIsCoordinatorFeedbackModalOpen] = useState(false);
+  const [isExpertFeedbackModalOpen, setIsExpertFeedbackModalOpen] = useState(false);
   const threadId = useStore((state) => state.threadId);
 
   // Function to pass down to open the feedback modal
@@ -80,9 +70,18 @@ export default function HomePage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsGraphChatbotModalOpen(true)} // Toggle new modal
+              onClick={() => setIsGraphChatbotModalOpen(true)}
             >
               <MessageSquareText />
+            </Button>
+          </Tooltip>
+          <Tooltip title="Get Expert Feedback">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsExpertFeedbackModalOpen(true)}
+            >
+              <Lightbulb />
             </Button>
           </Tooltip>
           <ThemeToggle />
@@ -91,16 +90,14 @@ export default function HomePage() {
           </Suspense>
         </div>
       </header>
-      <PersonaCarousel /> 
+      <PersonaCarousel />
       {/* 
         Pass openCoordinatorFeedbackModal to Main. 
         Main will need to be updated to accept this prop and pass it to InputBox.
         This change to Main.tsx is outside the scope of this specific Plandex response
         if Main.tsx is not in context.
       */}
-      <Main onOpenCoordinatorFeedbackModal={openCoordinatorFeedbackModal} /> 
-      <PersonaCarousel /> {/* Render PersonaCarousel before Main */}
-      <Main />
+      <Main onOpenCoordinatorFeedbackModal={openCoordinatorFeedbackModal} />
       <KnowledgeGraphModal
         isOpen={isGraphModalOpen}
         onClose={() => setIsGraphModalOpen(false)}
@@ -115,7 +112,12 @@ export default function HomePage() {
         isOpen={isCoordinatorFeedbackModalOpen}
         onClose={() => setIsCoordinatorFeedbackModalOpen(false)}
       />
+      {/* Placeholder for ExpertFeedbackModal - will be added in the next task */}
+      {/* <ExpertFeedbackModal
+            isOpen={isExpertFeedbackModalOpen}
+            onClose={() => setIsExpertFeedbackModalOpen(false)}
+            threadId={threadId}
+          /> */}
     </div>
   );
 }
-
