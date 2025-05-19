@@ -1,21 +1,12 @@
+// Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+// SPDX-License-Identifier: MIT
 
-"use client";
-
-import React, { useState, useEffect, useCallback } from "react";
-import { useForm, Controller } from "react-hook-form"; // Removed FormProvider as we use form directly
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { BotMessageSquare, CheckCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
-import { Label } from "~/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import { Input } from "~/components/ui/input";
-import { Button } from "~/components/ui/button";
 import {
   Form,
   FormControl,
@@ -25,337 +16,311 @@ import {
   FormLabel,
   FormMessage,
 } from "~/components/ui/form";
+import { Input } from "~/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import type { SettingsState, LLMProviderConfig } from "~/core/store";
 
-import { 
-  useSettingsStore, 
-  LLMRole, 
-  LLMProvider, 
-  LLMProviderConfig,
-  LLMRoleConfigurations,
-  DEFAULT_SETTINGS,
-  OpenAIConfig,
-  AzureOpenAIConfig,
-  OllamaConfig,
-  OpenAICompatibleConfig,
-  NotConfiguredLLM,
-} from "~/core/store/settings-store";
+import type { Tab } from "./types";
 
-const llmRoles: { value: LLMRole; label: string }[] = [
-  { value: "basic", label: "Basic Model" },
-  { value: "reasoning", label: "Reasoning Model" },
-  { value: "vision", label: "Vision Model" },
+// Available models for each provider
+const OPENAI_MODELS = [
+  "gpt-4o",
+  "gpt-4-turbo",
+  "gpt-4",
+  "gpt-3.5-turbo",
 ];
 
-const llmProvidersList: { value: LLMProvider; label: string }[] = [
-  { value: "", label: "Default (from conf.yaml)" },
-  { value: "openai", label: "OpenAI" },
-  { value: "azure", label: "Azure OpenAI" },
-  { value: "ollama", label: "Ollama" },
-  { value: "openai_compatible", label: "Other OpenAI-Compatible" },
+const AZURE_MODELS = [
+  "gpt-4o",
+  "gpt-4-turbo",
+  "gpt-4",
+  "gpt-3.5-turbo",
 ];
 
-// Zod schema for validation
-const llmConfigSchemaBase = z.object({
-  provider: z.custom<LLMProvider>(), // Use z.custom for the union type
-  model_name: z.string().optional().nullable(),
-  api_key: z.string().optional().nullable(),
-  base_url: z.string().optional().nullable(),
-  api_version: z.string().optional().nullable(), // Azure specific
-  temperature: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined || isNaN(parseFloat(String(val)))) ? null : parseFloat(String(val)),
-    z.number().min(0).max(2).optional().nullable()
-  ),
-  max_tokens: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined || isNaN(parseInt(String(val), 10))) ? null : parseInt(String(val), 10),
-    z.number().int().positive().optional().nullable()
-  ),
-  top_p: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined || isNaN(parseFloat(String(val)))) ? null : parseFloat(String(val)),
-    z.number().min(0).max(1).optional().nullable()
-  ),
+const OLLAMA_MODELS = [
+  "llama3",
+  "llama2",
+  "mistral",
+  "mixtral",
+  "phi",
+];
+
+// Define the form schema
+const llmFormSchema = z.object({
+  provider: z.enum(["", "openai", "azure", "ollama", "openai_compatible"]),
+  model_name: z.string().optional(),
+  api_key: z.string().optional(),
+  base_url: z.string().optional(),
 });
 
-export function LLMTab() {
-  const [selectedRole, setSelectedRole] = useState<LLMRole>("basic");
-  const { llmConfigurations, actions } = useSettingsStore();
+export const LLMTab: Tab = ({
+  settings,
+  onChange,
+}: {
+  settings: SettingsState;
+  onChange: (changes: Partial<SettingsState>) => void;
+}) => {
+  // Get the current LLM configuration
+  const currentConfig = settings.llmConfigurations?.basic || { provider: "" };
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  const form = useForm<LLMProviderConfig>({
-    resolver: zodResolver(llmConfigSchemaBase),
-    // Initialize with default for the selected role, or the very default if not found
-    defaultValues: llmConfigurations[selectedRole] || DEFAULT_SETTINGS.llmConfigurations[selectedRole] || { provider: "" },
+  const form = useForm<z.infer<typeof llmFormSchema>>({
+    resolver: zodResolver(llmFormSchema),
+    defaultValues: {
+      provider: currentConfig.provider || "",
+      model_name: currentConfig.model_name || "",
+      api_key: currentConfig.api_key || "",
+      base_url: (currentConfig as any).base_url || "",
+    },
+    mode: "all",
+    reValidateMode: "onBlur",
   });
 
-  const watchedProvider = form.watch("provider");
+  const watchProvider = form.watch("provider");
 
-  // Effect to reset form when selectedRole changes or when initial llmConfigurations are loaded
+  // Update form when settings change
   useEffect(() => {
-    const currentConfigForRole = llmConfigurations[selectedRole] || DEFAULT_SETTINGS.llmConfigurations[selectedRole] || { provider: "" };
-    form.reset(currentConfigForRole);
-  }, [selectedRole, llmConfigurations, form]);
-
-  // Effect to save changes to store when any form field changes
-  useEffect(() => {
-    const subscription = form.watch((values, { name, type }) => {
-      if (type === 'change' && name) { // Ensure it's a user change and a field name exists
-        const fieldName = name as keyof LLMProviderConfig;
-        let fieldValue = values[fieldName];
-
-        // Handle numeric conversions for specific fields
-        if (fieldName === 'temperature' || fieldName === 'top_p') {
-          fieldValue = (values[fieldName] === "" || values[fieldName] === null || values[fieldName] === undefined || isNaN(parseFloat(String(values[fieldName])))) 
-                       ? null 
-                       : parseFloat(String(values[fieldName]));
-        } else if (fieldName === 'max_tokens') {
-          fieldValue = (values[fieldName] === "" || values[fieldName] === null || values[fieldName] === undefined || isNaN(parseInt(String(values[fieldName]), 10))) 
-                       ? null 
-                       : parseInt(String(values[fieldName]), 10);
-        }
-        
-        const updatedRoleConfig = { ...form.getValues(), [fieldName]: fieldValue };
-
-        const newConfigurations: LLMRoleConfigurations = {
-          ...llmConfigurations,
-          [selectedRole]: updatedRoleConfig as LLMProviderConfig,
-        };
-        actions.changeSettings({ llmConfigurations: newConfigurations });
-      }
+    form.reset({
+      provider: currentConfig.provider || "",
+      model_name: currentConfig.model_name || "",
+      api_key: currentConfig.api_key || "",
+      base_url: (currentConfig as any).base_url || "",
     });
-    return () => subscription.unsubscribe();
-  }, [form, llmConfigurations, selectedRole, actions]);
+  }, [currentConfig, form]);
 
-  const handleResetRoleToDefault = useCallback(() => {
-    if (selectedRole) {
-      const newConfigurations: LLMRoleConfigurations = {
-        ...llmConfigurations,
-        [selectedRole]: { 
-          ...(DEFAULT_SETTINGS.llmConfigurations[selectedRole] || { provider: "" }),
-        } as LLMProviderConfig,
-      };
-      actions.changeSettings({ llmConfigurations: newConfigurations });
-      // The form.reset in the useEffect watching llmConfigurations will handle updating the form fields.
+  // Get available models based on selected provider
+  const getAvailableModels = () => {
+    switch (watchProvider) {
+      case "openai":
+        return OPENAI_MODELS;
+      case "azure":
+        return AZURE_MODELS;
+      case "ollama":
+        return OLLAMA_MODELS;
+      default:
+        return [];
     }
-  }, [selectedRole, llmConfigurations, actions]);
+  };
 
-  const renderProviderFields = (provider: LLMProvider) => {
-    if (provider === "") {
-      return <p className="text-sm text-muted-foreground p-4 text-center">Using default LLM configuration from backend (conf.yaml).</p>;
+  const handleUpdateSettings = () => {
+    const values = form.getValues();
+    
+    if (!values.provider) {
+      toast.error("Provider Required", {
+        description: "Please select an LLM provider before updating settings.",
+      });
+      return;
     }
 
-    return (
-      <div className="space-y-4 mt-4 p-4 border rounded-md">
-        <FormField
-          control={form.control}
-          name="model_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Model Name {provider === "azure" ? "(Deployment Name)" : ""}</FormLabel>
-              <FormControl>
-                <Input placeholder={provider === "azure" ? "e.g., gpt-35-turbo-deployment" : "e.g., gpt-3.5-turbo"} {...field} value={field.value ?? ""} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="api_key"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>API Key</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="Leave blank to use environment variable" {...field} value={field.value ?? ""} />
-              </FormControl>
-              <FormDescription>Optional. If not set, the backend will try to use environment variables.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        {(provider === "openai" || provider === "ollama" || provider === "openai_compatible" || provider === "azure") && (
-          <FormField
-            control={form.control}
-            name="base_url"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {provider === "azure" ? "Azure Endpoint URL" : 
-                   provider === "ollama" ? "Ollama Base URL" : 
-                   "API Base URL"}
-                </FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder={
-                      provider === "azure" ? "e.g., https://your-resource.openai.azure.com/" :
-                      provider === "ollama" ? "e.g., http://localhost:11434" :
-                      provider === "openai_compatible" ? "e.g., https://api.groq.com/openai/v1" :
-                      "e.g., https://api.openai.com/v1"
-                    } 
-                    {...field} value={field.value ?? ""} 
-                  />
-                </FormControl>
-                <FormDescription>
-                  {provider === "ollama" && "Optional. Defaults to Ollama's standard local URL if not set."}
-                  {provider === "openai_compatible" && "Required for OpenAI-compatible providers."}
-                   {provider === "azure" && "Required. Example: https://your-resource.openai.azure.com/"}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        {provider === "azure" && (
-          <FormField
-            control={form.control}
-            name="api_version"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>API Version (Azure)</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., 2023-07-01-preview" {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormDescription>Required for Azure OpenAI.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        <FormField
-          control={form.control}
-          name="temperature"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Temperature</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.1" min="0" max="2" placeholder="e.g., 0.7 (Default by provider)" 
-                {...field} 
-                value={field.value === null || field.value === undefined ? "" : String(field.value)}
-                // onChange is handled by the main form.watch subscription
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={form.control}
-          name="max_tokens"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Max Tokens</FormLabel>
-              <FormControl>
-                <Input type="number" step="1" min="1" placeholder="e.g., 2048 (Default by provider)" 
-                 {...field} 
-                 value={field.value === null || field.value === undefined ? "" : String(field.value)}
-                // onChange is handled by the main form.watch subscription
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="top_p"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Top P</FormLabel>
-              <FormControl>
-                <Input type="number" step="0.1" min="0" max="1" placeholder="e.g., 1.0 (Default by provider)" 
-                 {...field} 
-                 value={field.value === null || field.value === undefined ? "" : String(field.value)}
-                // onChange is handled by the main form.watch subscription
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-    );
+    // Create a new LLM configuration based on form values
+    const newConfig: LLMProviderConfig = {
+      provider: values.provider as any,
+      model_name: values.model_name,
+      api_key: values.api_key,
+    };
+
+    // Add base_url if applicable
+    if (values.base_url && ["openai", "azure", "ollama", "openai_compatible"].includes(values.provider)) {
+      (newConfig as any).base_url = values.base_url;
+    }
+
+    // Update all LLM roles with the same configuration
+    const newLLMConfigurations = {
+      basic: newConfig,
+      reasoning: newConfig,
+      vision: newConfig,
+    };
+
+    onChange({ llmConfigurations: newLLMConfigurations });
+    
+    // Show success message
+    setShowSuccessMessage(true);
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      setShowSuccessMessage(false);
+    }, 3000);
   };
 
   return (
-    <Form {...form}> {/* Pass form methods to Form component */}
-      <form className="space-y-6 p-1" onSubmit={(e) => e.preventDefault()}> {/* Prevent default form submission */}
-        <div className="space-y-2">
-          <Label htmlFor="llm-role-select">Configure LLM Role</Label>
-          <Select 
-            value={selectedRole} 
-            onValueChange={(value) => setSelectedRole(value as LLMRole)}
-          >
-            <SelectTrigger id="llm-role-select">
-              <SelectValue placeholder="Select LLM Role" />
-            </SelectTrigger>
-            <SelectContent>
-              {llmRoles.map((role) => (
-                <SelectItem key={role.value} value={role.value}>
-                  {role.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Select the LLM role (e.g., for basic tasks, reasoning, or vision). Settings are saved automatically.
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <header>
+        <h1 className="text-lg font-medium">LLM Configuration</h1>
+        <p className="text-muted-foreground text-sm">
+          Configure the Large Language Model settings for DeerFlow.
+        </p>
+      </header>
+      
+      {showSuccessMessage && (
+        <Alert className="bg-green-50 border-green-200 text-green-800 mb-4">
+          <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+          <AlertDescription>
+            LLM successfully configured
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <main>
+        <Form {...form}>
+          <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
+            <FormField
+              control={form.control}
+              name="provider"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>LLM Provider</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-60">
+                        <SelectValue placeholder="Select a provider" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Default (System Config)</SelectItem>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="azure">Azure OpenAI</SelectItem>
+                      <SelectItem value="ollama">Ollama</SelectItem>
+                      <SelectItem value="openai_compatible">OpenAI Compatible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select the LLM provider you want to use.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="space-y-2 border-t pt-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-md font-medium">
-              Provider for {llmRoles.find(r => r.value === selectedRole)?.label || selectedRole}
-            </h3>
-            <Button variant="outline" size="sm" onClick={handleResetRoleToDefault}>
-              Reset to Default
-            </Button>
-          </div>
-          <FormField
-            control={form.control}
-            name="provider"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>LLM Provider</FormLabel>
-                <Select 
-                  onValueChange={(value) => {
-                    const newProvider = value as LLMProvider;
-                    // When provider changes, reset the form with defaults for the new provider type
-                    // under the currently selected role, preserving only the new provider.
-                    let newProviderDefaults: LLMProviderConfig = { provider: newProvider };
-                    if (newProvider === "openai") newProviderDefaults = { provider: "openai" } as OpenAIConfig;
-                    else if (newProvider === "azure") newProviderDefaults = { provider: "azure" } as AzureOpenAIConfig;
-                    else if (newProvider === "ollama") newProviderDefaults = { provider: "ollama" } as OllamaConfig;
-                    else if (newProvider === "openai_compatible") newProviderDefaults = { provider: "openai_compatible" } as OpenAICompatibleConfig;
-                    else newProviderDefaults = { provider: "" } as NotConfiguredLLM;
+            {watchProvider && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="model_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Model</FormLabel>
+                      {getAvailableModels().length > 0 ? (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-60">
+                              <SelectValue placeholder="Select a model" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {getAvailableModels().map((model) => (
+                              <SelectItem key={model} value={model}>
+                                {model}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <FormControl>
+                          <Input
+                            className="w-60"
+                            placeholder="Enter model name"
+                            {...field}
+                          />
+                        </FormControl>
+                      )}
+                      <FormDescription>
+                        Select or enter the model you want to use.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    form.reset({
-                        ...DEFAULT_SETTINGS.llmConfigurations[selectedRole], // Start with role defaults
-                        ...newProviderDefaults, // Overlay provider type specific defaults
-                        provider: newProvider, // Ensure the selected provider is set
-                    });
-                    // The form.watch effect will pick up this change and save it.
-                  }} 
-                  value={field.value}
+                <FormField
+                  control={form.control}
+                  name="api_key"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>API Key</FormLabel>
+                      <FormControl>
+                        <Input
+                          className="w-60"
+                          type="password"
+                          placeholder="Enter your API key"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Your API key will be stored locally and never sent to our servers.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {["openai", "azure", "ollama", "openai_compatible"].includes(watchProvider) && (
+                  <FormField
+                    control={form.control}
+                    name="base_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {watchProvider === "azure"
+                            ? "Azure Endpoint"
+                            : watchProvider === "ollama"
+                            ? "Ollama Server URL"
+                            : "Base URL"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-60"
+                            placeholder={
+                              watchProvider === "azure"
+                                ? "https://your-resource.openai.azure.com"
+                                : watchProvider === "ollama"
+                                ? "http://localhost:11434"
+                                : "https://api.openai.com/v1"
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {watchProvider === "azure"
+                            ? "Your Azure OpenAI endpoint URL"
+                            : watchProvider === "ollama"
+                            ? "URL of your Ollama server"
+                            : "Custom base URL for API requests (optional)"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                <Button 
+                  type="button" 
+                  onClick={handleUpdateSettings}
+                  className="mt-4"
                 >
-                  <FormControl>
-                    <SelectTrigger id={`llm-provider-select-${selectedRole}`}>
-                      <SelectValue placeholder="Select Provider" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {llmProvidersList.map((providerOpt) => (
-                      <SelectItem key={providerOpt.value} value={providerOpt.value}>
-                        {providerOpt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
+                  Update LLM Settings
+                </Button>
+              </>
             )}
-          />
-        </div>
-        
-        {watchedProvider !== undefined && renderProviderFields(watchedProvider)}
-
-      </form>
-    </Form>
+          </form>
+        </Form>
+      </main>
+    </div>
   );
-}
+};
+
+LLMTab.icon = BotMessageSquare;
