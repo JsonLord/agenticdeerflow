@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BotMessageSquare } from "lucide-react";
-import { useEffect } from "react";
+import { BotMessageSquare, CheckCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -24,6 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { Button } from "~/components/ui/button";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import type { SettingsState, LLMProviderConfig } from "~/core/store";
 
 import type { Tab } from "./types";
@@ -68,6 +71,7 @@ export const LLMTab: Tab = ({
 }) => {
   // Get the current LLM configuration
   const currentConfig = settings.llmConfigurations?.basic || { provider: "" };
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const form = useForm<z.infer<typeof llmFormSchema>>({
     resolver: zodResolver(llmFormSchema),
@@ -85,33 +89,13 @@ export const LLMTab: Tab = ({
 
   // Update form when settings change
   useEffect(() => {
-    const subscription = form.watch((value) => {
-      if (!value.provider) return;
-
-      // Create a new LLM configuration based on form values
-      const newConfig: LLMProviderConfig = {
-        provider: value.provider as any,
-        model_name: value.model_name,
-        api_key: value.api_key,
-      };
-
-      // Add base_url if applicable
-      if (value.base_url && ["openai", "azure", "ollama", "openai_compatible"].includes(value.provider)) {
-        (newConfig as any).base_url = value.base_url;
-      }
-
-      // Update all LLM roles with the same configuration
-      const newLLMConfigurations = {
-        basic: newConfig,
-        reasoning: newConfig,
-        vision: newConfig,
-      };
-
-      onChange({ llmConfigurations: newLLMConfigurations });
+    form.reset({
+      provider: currentConfig.provider || "",
+      model_name: currentConfig.model_name || "",
+      api_key: currentConfig.api_key || "",
+      base_url: (currentConfig as any).base_url || "",
     });
-
-    return () => subscription.unsubscribe();
-  }, [form, onChange]);
+  }, [currentConfig, form]);
 
   // Get available models based on selected provider
   const getAvailableModels = () => {
@@ -127,6 +111,46 @@ export const LLMTab: Tab = ({
     }
   };
 
+  const handleUpdateSettings = () => {
+    const values = form.getValues();
+    
+    if (!values.provider) {
+      toast.error("Provider Required", {
+        description: "Please select an LLM provider before updating settings.",
+      });
+      return;
+    }
+
+    // Create a new LLM configuration based on form values
+    const newConfig: LLMProviderConfig = {
+      provider: values.provider as any,
+      model_name: values.model_name,
+      api_key: values.api_key,
+    };
+
+    // Add base_url if applicable
+    if (values.base_url && ["openai", "azure", "ollama", "openai_compatible"].includes(values.provider)) {
+      (newConfig as any).base_url = values.base_url;
+    }
+
+    // Update all LLM roles with the same configuration
+    const newLLMConfigurations = {
+      basic: newConfig,
+      reasoning: newConfig,
+      vision: newConfig,
+    };
+
+    onChange({ llmConfigurations: newLLMConfigurations });
+    
+    // Show success message
+    setShowSuccessMessage(true);
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      setShowSuccessMessage(false);
+    }, 3000);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <header>
@@ -135,9 +159,19 @@ export const LLMTab: Tab = ({
           Configure the Large Language Model settings for DeerFlow.
         </p>
       </header>
+      
+      {showSuccessMessage && (
+        <Alert className="bg-green-50 border-green-200 text-green-800 mb-4">
+          <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+          <AlertDescription>
+            LLM successfully configured
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <main>
         <Form {...form}>
-          <form className="space-y-8">
+          <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
             <FormField
               control={form.control}
               name="provider"
@@ -272,6 +306,14 @@ export const LLMTab: Tab = ({
                     )}
                   />
                 )}
+                
+                <Button 
+                  type="button" 
+                  onClick={handleUpdateSettings}
+                  className="mt-4"
+                >
+                  Update LLM Settings
+                </Button>
               </>
             )}
           </form>
@@ -282,4 +324,3 @@ export const LLMTab: Tab = ({
 };
 
 LLMTab.icon = BotMessageSquare;
-
