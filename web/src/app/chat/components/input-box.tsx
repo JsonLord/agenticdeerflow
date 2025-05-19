@@ -45,7 +45,7 @@ export function InputBox({
   const [imeStatus, setImeStatus] = useState<"active" | "inactive">("inactive");
   const [indent, setIndent] = useState(0);
   const backgroundInvestigation = useSettingsStore(
-    (state) => state.general.enableBackgroundInvestigation,
+    (state) => state.enableBackgroundInvestigation,
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);

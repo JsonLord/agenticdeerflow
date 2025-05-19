@@ -19,7 +19,6 @@ import {
   ShoppingCart, // Product and Price Finder
 } from "lucide-react";
 
-import { type LucideIcon, Brain, SlidersHorizontal, Zap } from "lucide-react";
 
 export interface Persona {
   id: string; // Corresponds to the MD filename without .md

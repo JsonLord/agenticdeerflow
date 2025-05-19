@@ -2,9 +2,8 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import { FileText, Info, Settings, BotMessageSquare } from "lucide-react"; // Added BotMessageSquare for LLM tab
+import { FileText, Info, Settings, BotMessageSquare, type LucideIcon } from "lucide-react"; // Added BotMessageSquare for LLM tab
 
-import { Settings, type LucideIcon } from "lucide-react";
 
 import { AboutTab } from "./about-tab";
 import { GeneralTab } from "./general-tab";

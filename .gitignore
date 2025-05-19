@@ -24,3 +24,11 @@ conf.yaml
 # coverage report
 coverage.xml
 coverage/
+
+
+# .gitignore
+__pycache__/
+*.pyc
+.env
+venv/
+.vscode/

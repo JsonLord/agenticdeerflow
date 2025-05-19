@@ -14,7 +14,7 @@ import { cn } from "~/lib/utils";
 
 export function PersonaCarousel() {
   const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
-  const setSelectedCoordinatorPersona = useStore((state) => state.actions.setSelectedCoordinatorPersona);
+  const setSelectedCoordinatorPersona = useStore((state) => state.setSelectedCoordinatorPersona);
 
   const handlePersonaSelect = (personaId: string) => {
     setSelectedCoordinatorPersona(personaId);

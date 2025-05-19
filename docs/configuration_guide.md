@@ -35,24 +35,28 @@ The following is a configuration example of `conf.yaml` for using OpenAI-Compati
 ```yaml
 # An example of Doubao models served by VolcEngine
 BASIC_MODEL:
+  provider: openai_compatible
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   model: "doubao-1.5-pro-32k-250115"
   api_key: YOUR_API_KEY
 
 # An example of Aliyun models
 BASIC_MODEL:
+  provider: openai_compatible
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   model: "qwen-max-latest"
   api_key: YOUR_API_KEY
 
 # An example of deepseek official models
 BASIC_MODEL:
+  provider: openai_compatible
   base_url: "https://api.deepseek.com"
   model: "deepseek-chat"
   api_key: YOU_API_KEY
 
 # An example of Google Gemini models using OpenAI-Compatible interface
 BASIC_MODEL:
+  provider: openai_compatible
   base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
   model: "gemini-2.0-flash"
   api_key: YOUR_API_KEY
@@ -65,6 +69,7 @@ The following is a configuration example of `conf.yaml` for using Ollama models:
 
 ```yaml
 BASIC_MODEL:
+  provider: ollama
   model: "ollama/ollama-model-name"
   base_url: "http://localhost:11434" # Local service address of Ollama, which can be started/viewed via ollama serve
 ```
@@ -84,6 +89,7 @@ OPENROUTER_API_KEY=""
 2. Set the model name in `conf.yaml`
 ```yaml
 BASIC_MODEL:
+  provider: openai_compatible
   model: "openrouter/google/palm-2-chat-bison"
 ```
 
@@ -94,6 +100,7 @@ Note: The available models and their exact names may change over time. Please ve
 DeerFlow supports the integration of Azure models. You can refer to [litellm Azure](https://docs.litellm.ai/docs/providers/azure). Configuration example of `conf.yaml`:
 ```yaml
 BASIC_MODEL:
+  provider: azure
   model: "azure/gpt-4o-2024-08-06"
   api_base: $AZURE_API_BASE
   api_version: $AZURE_API_VERSION

@@ -210,3 +210,41 @@ export const useSettingsStore = create<SettingsState>()(
 // For now, we can call it here, but it might run multiple times if store is re-imported.
 // A better place is in a useEffect in a layout component.
 // useSettingsStore.getState().actions.loadSettings();
+// Wrapper functions for settings store actions and adapters for chat parameters
+export function changeSettings(settings: Partial<Omit<SettingsState, "actions">>) {
+  useSettingsStore.getState().actions.changeSettings(settings);
+}
+
+export function saveSettings() {
+  useSettingsStore.getState().actions.saveSettings({});
+}
+
+/**
+ * Retrieve settings for chatStream parameters
+ */
+export function getChatStreamSettings() {
+  const {
+    autoAcceptedPlan,
+    maxPlanIterations,
+    maxStepNum,
+    maxSearchResults,
+    enableBackgroundInvestigation,
+    mcpServers,
+  } = useSettingsStore.getState();
+  const servers: Record<string, typeof mcpServers[number]> = {};
+  for (const server of mcpServers) {
+    servers[server.name] = server;
+  }
+  return {
+    autoAcceptedPlan,
+    maxPlanIterations,
+    maxStepNum,
+    maxSearchResults,
+    enableBackgroundInvestigation,
+    mcpSettings: mcpServers.length > 0 ? { servers } : undefined,
+  };
+}
+
+export function setEnableBackgroundInvestigation(value: boolean) {
+  changeSettings({ enableBackgroundInvestigation: value });
+}

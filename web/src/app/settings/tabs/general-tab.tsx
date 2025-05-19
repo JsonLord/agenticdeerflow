@@ -3,7 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Settings } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -44,28 +44,27 @@ export const GeneralTab: Tab = ({
   settings: SettingsState;
   onChange: (changes: Partial<SettingsState>) => void;
 }) => {
-  const generalSettings = useMemo(() => settings.general, [settings]);
   const form = useForm<z.infer<typeof generalFormSchema>>({
-    resolver: zodResolver(generalFormSchema, undefined, undefined),
-    defaultValues: generalSettings,
+    resolver: zodResolver(generalFormSchema),
+    defaultValues: {
+      autoAcceptedPlan: settings.autoAcceptedPlan,
+      enableBackgroundInvestigation: settings.enableBackgroundInvestigation,
+      maxPlanIterations: settings.maxPlanIterations,
+      maxStepNum: settings.maxStepNum,
+      maxSearchResults: settings.maxSearchResults,
+    },
     mode: "all",
     reValidateMode: "onBlur",
   });
 
   const currentSettings = form.watch();
   useEffect(() => {
-    let hasChanges = false;
-    for (const key in currentSettings) {
-      if (
-        currentSettings[key as keyof typeof currentSettings] !==
-        settings.general[key as keyof SettingsState["general"]]
-      ) {
-        hasChanges = true;
-        break;
-      }
-    }
+    const keys = Object.keys(currentSettings) as Array<keyof typeof currentSettings>;
+    const hasChanges = keys.some(
+      (key) => currentSettings[key] !== (settings as any)[key],
+    );
     if (hasChanges) {
-      onChange({ general: currentSettings });
+      onChange(currentSettings as Partial<SettingsState>);
     }
   }, [currentSettings, onChange, settings]);
 
