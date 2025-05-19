@@ -1,4 +1,3 @@
-
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -39,7 +38,7 @@ export const tabs: SettingsTab[] = [
   },
 ];
 
-export const SETTINGS_TABS = [GeneralTab, MCPTab, AboutTab].map((tab) => {
+export const SETTINGS_TABS = [GeneralTab, LLMTab, MCPTab, AboutTab].map((tab) => {
   const name = tab.name ?? tab.displayName;
   return {
     ...tab,
