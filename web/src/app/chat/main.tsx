@@ -52,7 +52,7 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
     <main className="relative flex h-full w-full max-w-4xl flex-1 flex-col items-center justify-center overflow-hidden pt-12">
       <div
         ref={mainContentRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden w-full pb-[150px] scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden w-full pb-[200px] scroll-smooth"
       >
         {messageIds.length === 0 ? (
           <>
@@ -69,7 +69,7 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
           />
         )}
       </div>
-      <div className="fixed bottom-0 w-full max-w-4xl p-4">
+      <div className="fixed bottom-0 w-full max-w-4xl p-4 space-y-3">
         <InputBox
           responding={responding}
           waitingForFeedback={waitingForFeedback}
@@ -78,9 +78,7 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
           onInterrupt={handleInterrupt}
           onOpenCoordinatorFeedbackModal={onOpenCoordinatorFeedbackModal}
         />
-        <div className="mt-2">
-          <PersonaCarouselFrame />
-        </div>
+        <PersonaCarouselFrame />
       </div>
       {openResearchId && (
         <ResearchBlock
