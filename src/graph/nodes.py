@@ -1,4 +1,3 @@
-
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
@@ -35,6 +34,7 @@ from ..config import SELECTED_SEARCH_ENGINE, SearchEngine
 
 logger = logging.getLogger(__name__)
 
+
 @tool
 def handoff_to_planner(
     task_title: Annotated[str, "The title of the task to be handed off."],
@@ -45,6 +45,7 @@ def handoff_to_planner(
     # as a way for LLM to signal that it needs to hand off to planner agent
     return
 
+
 def background_investigation_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["planner"]]:
@@ -53,7 +54,11 @@ def background_investigation_node(
     updated_state_changes = {}
     try:
         configurable = Configuration.from_runnable_config(config)
-        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        runtime_llm_configs = (
+            config.configurable.get("runtime_llm_configs")
+            if config and hasattr(config, "configurable")
+            else None
+        )
 
         query = state["messages"][-1].content
         background_investigation_results = None
@@ -70,7 +75,9 @@ def background_investigation_node(
                 logger.error(
                     f"Tavily search returned malformed response: {searched_content}"
                 )
-                raise ValueError(f"Tavily search returned malformed response: {searched_content}")
+                raise ValueError(
+                    f"Tavily search returned malformed response: {searched_content}"
+                )
         else:
             background_investigation_results = get_web_search_tool(
                 configurable.max_search_results
@@ -97,6 +104,7 @@ def background_investigation_node(
         }
         return Command(update=updated_state_changes, goto=END)
 
+
 def planner_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["human_feedback", "reporter", "__end__"]]:
@@ -106,9 +114,15 @@ def planner_node(
     full_response = ""
     try:
         configurable = Configuration.from_runnable_config(config)
-        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        runtime_llm_configs = (
+            config.configurable.get("runtime_llm_configs")
+            if config and hasattr(config, "configurable")
+            else None
+        )
         planner_llm_role = AGENT_LLM_MAP["planner"]
-        planner_runtime_config = runtime_llm_configs.get(planner_llm_role) if runtime_llm_configs else None
+        planner_runtime_config = (
+            runtime_llm_configs.get(planner_llm_role) if runtime_llm_configs else None
+        )
 
         plan_iterations = state.get("plan_iterations", 0)
         messages = apply_prompt_template("planner", state, configurable)
@@ -131,20 +145,20 @@ def planner_node(
 
         if AGENT_LLM_MAP["planner"] == "basic":
             llm = get_llm_by_type(
-                planner_llm_role,
-                runtime_config_dict=planner_runtime_config
+                planner_llm_role, runtime_config_dict=planner_runtime_config
             ).with_structured_output(
                 Plan,
                 method="json_mode",
             )
         else:
             llm = get_llm_by_type(
-                planner_llm_role,
-                runtime_config_dict=planner_runtime_config
+                planner_llm_role, runtime_config_dict=planner_runtime_config
             )
 
         if plan_iterations >= configurable.max_plan_iterations:
-            logger.warning(f"Max plan iterations ({configurable.max_plan_iterations}) reached. Going to reporter.")
+            logger.warning(
+                f"Max plan iterations ({configurable.max_plan_iterations}) reached. Going to reporter."
+            )
             updated_state_changes["current_node_error"] = None
             return Command(update=updated_state_changes, goto="reporter")
 
@@ -164,19 +178,23 @@ def planner_node(
         if curr_plan_data.get("has_enough_context"):
             logger.info("Planner response has enough context.")
             new_plan = Plan.model_validate(curr_plan_data)
-            updated_state_changes.update({
-                "messages": [AIMessage(content=full_response, name="planner")],
-                "current_plan": new_plan,
-            })
+            updated_state_changes.update(
+                {
+                    "messages": [AIMessage(content=full_response, name="planner")],
+                    "current_plan": new_plan,
+                }
+            )
             return Command(
                 update=updated_state_changes,
                 goto="reporter",
             )
 
-        updated_state_changes.update({
-            "messages": [AIMessage(content=full_response, name="planner")],
-            "current_plan": full_response,
-        })
+        updated_state_changes.update(
+            {
+                "messages": [AIMessage(content=full_response, name="planner")],
+                "current_plan": full_response,
+            }
+        )
         return Command(
             update=updated_state_changes,
             goto="human_feedback",
@@ -206,8 +224,9 @@ def planner_node(
         }
         return Command(update=updated_state_changes, goto=END)
 
+
 def human_feedback_node(
-    state: State
+    state: State,
 ) -> Command[Literal["planner", "research_team", "reporter", "__end__"]]:
     node_name = "human_feedback"
     logger.info(f"{node_name} node is running.")
@@ -220,17 +239,21 @@ def human_feedback_node(
             feedback = interrupt("Please Review the Plan.")
 
             if feedback and str(feedback).upper().startswith("[EDIT_PLAN]"):
-                updated_state_changes.update({
-                    "messages": [
-                        HumanMessage(content=feedback, name="feedback"),
-                    ],
-                    "current_node_error": None,
-                })
+                updated_state_changes.update(
+                    {
+                        "messages": [
+                            HumanMessage(content=feedback, name="feedback"),
+                        ],
+                        "current_node_error": None,
+                    }
+                )
                 return Command(update=updated_state_changes, goto="planner")
             elif feedback and str(feedback).upper().startswith("[ACCEPTED]"):
                 logger.info("Plan is accepted by user.")
             else:
-                raise TypeError(f"Interrupt value of '{feedback}' is not supported or resolution unclear.")
+                raise TypeError(
+                    f"Interrupt value of '{feedback}' is not supported or resolution unclear."
+                )
 
         plan_iterations = state.get("plan_iterations", 0)
 
@@ -241,18 +264,22 @@ def human_feedback_node(
         elif isinstance(current_plan_str, Plan):
             validated_plan = current_plan_str
         else:
-            raise ValueError(f"current_plan is of unexpected type: {type(current_plan_str)}")
+            raise ValueError(
+                f"current_plan is of unexpected type: {type(current_plan_str)}"
+            )
 
         goto = "research_team"
         if validated_plan.has_enough_context:
             goto = "reporter"
 
-        updated_state_changes.update({
-            "current_plan": validated_plan,
-            "plan_iterations": plan_iterations + 1,
-            "locale": validated_plan.locale,
-            "current_node_error": None,
-        })
+        updated_state_changes.update(
+            {
+                "current_plan": validated_plan,
+                "plan_iterations": plan_iterations + 1,
+                "locale": validated_plan.locale,
+                "current_node_error": None,
+            }
+        )
         return Command(update=updated_state_changes, goto=goto)
 
     except Exception as e:
@@ -266,6 +293,7 @@ def human_feedback_node(
         }
         return Command(update=updated_state_changes, goto=END)
 
+
 def coordinator_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["planner", "background_investigator", "__end__"]]:
@@ -273,17 +301,23 @@ def coordinator_node(
     logger.info(f"{node_name} talking.")
     updated_state_changes = {}
     try:
-        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        runtime_llm_configs = (
+            config.configurable.get("runtime_llm_configs")
+            if config and hasattr(config, "configurable")
+            else None
+        )
         coordinator_llm_role = AGENT_LLM_MAP["coordinator"]
-        coordinator_runtime_config = runtime_llm_configs.get(coordinator_llm_role) if runtime_llm_configs else None
-
+        coordinator_runtime_config = (
+            runtime_llm_configs.get(coordinator_llm_role)
+            if runtime_llm_configs
+            else None
+        )
 
         messages = apply_prompt_template("coordinator", state, config.configurable)
-    
+
         response = (
             get_llm_by_type(
-                coordinator_llm_role,
-                runtime_config_dict=coordinator_runtime_config
+                coordinator_llm_role, runtime_config_dict=coordinator_runtime_config
             )
             .bind_tools([handoff_to_planner])
             .invoke(messages)
@@ -325,18 +359,27 @@ def coordinator_node(
         }
         return Command(update=updated_state_changes, goto=END)
 
+
 def reporter_node(state: State, config: RunnableConfig) -> Command:
     node_name = "reporter"
     logger.info(f"{node_name} write final report")
     updated_state_changes = {}
     try:
-        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        runtime_llm_configs = (
+            config.configurable.get("runtime_llm_configs")
+            if config and hasattr(config, "configurable")
+            else None
+        )
         reporter_llm_role = AGENT_LLM_MAP["reporter"]
-        reporter_runtime_config = runtime_llm_configs.get(reporter_llm_role) if runtime_llm_configs else None
+        reporter_runtime_config = (
+            runtime_llm_configs.get(reporter_llm_role) if runtime_llm_configs else None
+        )
 
         current_plan = state.get("current_plan")
         if not isinstance(current_plan, Plan):
-            raise ValueError(f"Reporter expected a Plan object for current_plan, got {type(current_plan)}")
+            raise ValueError(
+                f"Reporter expected a Plan object for current_plan, got {type(current_plan)}"
+            )
 
         input_ = {
             "messages": [
@@ -365,8 +408,7 @@ def reporter_node(state: State, config: RunnableConfig) -> Command:
             )
         logger.debug(f"Current invoke messages: {invoke_messages}")
         response = get_llm_by_type(
-            reporter_llm_role,
-            runtime_config_dict=reporter_runtime_config
+            reporter_llm_role, runtime_config_dict=reporter_runtime_config
         ).invoke(invoke_messages)
         response_content = response.content
         logger.info(f"reporter response: {response_content}")
@@ -384,9 +426,10 @@ def reporter_node(state: State, config: RunnableConfig) -> Command:
         updated_state_changes = {
             "current_node_error": error_message,
             "node_errors": current_node_errors,
-            "final_report": f"Failed to generate report due to: {error_message}"
+            "final_report": f"Failed to generate report due to: {error_message}",
         }
         return Command(update=updated_state_changes, goto=END)
+
 
 def research_team_node(
     state: State,
@@ -407,6 +450,7 @@ def research_team_node(
         return Command(goto="coder")
     return Command(goto="planner")
 
+
 async def _execute_agent_step(
     state: State, agent, agent_name: str
 ) -> Command[Literal["research_team", "__end__"]]:
@@ -419,7 +463,9 @@ async def _execute_agent_step(
         observations = state.get("observations", [])
 
         if not isinstance(current_plan, Plan):
-            raise ValueError(f"Agent {agent_name} expected a Plan object, got {type(current_plan)}")
+            raise ValueError(
+                f"Agent {agent_name} expected a Plan object, got {type(current_plan)}"
+            )
 
         completed_steps = []
         for step in current_plan.steps:
@@ -431,7 +477,9 @@ async def _execute_agent_step(
 
         if not current_step:
             logger.warning(f"No unexecuted step found for {agent_name}")
-            raise ValueError(f"No unexecuted step found for agent {agent_name} to execute.")
+            raise ValueError(
+                f"No unexecuted step found for agent {agent_name} to execute."
+            )
 
         logger.info(f"Agent {agent_name} executing step: {current_step.title}")
 
@@ -439,8 +487,12 @@ async def _execute_agent_step(
         if completed_steps:
             completed_steps_info = "# Existing Research Findings\n\n"
             for i, step_obj in enumerate(completed_steps):
-                completed_steps_info += f"## Existing Finding {i+1}: {step_obj.title}\n\n"
-                completed_steps_info += f"<finding>\n{step_obj.execution_res}\n</finding>\n\n"
+                completed_steps_info += (
+                    f"## Existing Finding {i+1}: {step_obj.title}\n\n"
+                )
+                completed_steps_info += (
+                    f"<finding>\n{step_obj.execution_res}\n</finding>\n\n"
+                )
 
         agent_input = {
             "messages": [
@@ -460,9 +512,13 @@ async def _execute_agent_step(
 
         default_recursion_limit = 25
         try:
-            env_value_str = os.getenv("AGENT_RECURSION_LIMIT", str(default_recursion_limit))
+            env_value_str = os.getenv(
+                "AGENT_RECURSION_LIMIT", str(default_recursion_limit)
+            )
             parsed_limit = int(env_value_str)
-            recursion_limit = parsed_limit if parsed_limit > 0 else default_recursion_limit
+            recursion_limit = (
+                parsed_limit if parsed_limit > 0 else default_recursion_limit
+            )
             if parsed_limit <= 0:
                 logger.warning(
                     f"AGENT_RECURSION_LIMIT value '{env_value_str}' (parsed as {parsed_limit}) is not positive. "
@@ -514,6 +570,7 @@ async def _execute_agent_step(
             updated_state_changes["current_plan"] = state.get("current_plan")
         return Command(update=updated_state_changes, goto=END)
 
+
 async def _setup_and_execute_agent_step(
     state: State,
     config: RunnableConfig,
@@ -526,15 +583,23 @@ async def _setup_and_execute_agent_step(
     updated_state_changes = {}
     try:
         configurable = Configuration.from_runnable_config(config)
-        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        runtime_llm_configs = (
+            config.configurable.get("runtime_llm_configs")
+            if config and hasattr(config, "configurable")
+            else None
+        )
         agent_llm_role = agent_type
-        agent_runtime_config = runtime_llm_configs.get(agent_llm_role) if runtime_llm_configs else None
+        agent_runtime_config = (
+            runtime_llm_configs.get(agent_llm_role) if runtime_llm_configs else None
+        )
 
         mcp_servers = {}
         enabled_tools = {}
 
         if configurable.mcp_settings:
-            for server_name, server_config_dict in configurable.mcp_settings["servers"].items():
+            for server_name, server_config_dict in configurable.mcp_settings[
+                "servers"
+            ].items():
                 if (
                     server_config_dict["enabled_tools"]
                     and agent_type in server_config_dict["add_to_agents"]
@@ -553,16 +618,14 @@ async def _setup_and_execute_agent_step(
                 loaded_tools = default_tools[:]
                 for tool_instance in client.get_tools():
                     if tool_instance.name in enabled_tools:
-                        tool_instance.description = (
-                            f"Powered by '{enabled_tools[tool_instance.name]}'.\n{tool_instance.description}"
-                        )
+                        tool_instance.description = f"Powered by '{enabled_tools[tool_instance.name]}'.\n{tool_instance.description}"
                         loaded_tools.append(tool_instance)
                 agent_to_execute = create_agent(
                     agent_type,
                     agent_llm_role,
                     loaded_tools,
                     agent_type,
-                    llm_runtime_config_dict=agent_runtime_config
+                    llm_runtime_config_dict=agent_runtime_config,
                 )
         else:
             agent_to_execute = create_agent(
@@ -570,13 +633,15 @@ async def _setup_and_execute_agent_step(
                 agent_llm_role,
                 default_tools,
                 agent_type,
-                llm_runtime_config_dict=agent_runtime_config
+                llm_runtime_config_dict=agent_runtime_config,
             )
 
         return await _execute_agent_step(state, agent_to_execute, agent_type)
 
     except Exception as e:
-        error_message = f"Error in _setup_and_execute_agent_step for {node_name}: {str(e)}"
+        error_message = (
+            f"Error in _setup_and_execute_agent_step for {node_name}: {str(e)}"
+        )
         logger.error(error_message, exc_info=True)
         current_node_errors = state.get("node_errors", {}).copy()
         current_node_errors[node_name] = error_message
@@ -592,9 +657,12 @@ async def _setup_and_execute_agent_step(
                     current_step_obj = step_item
                     break
             if current_step_obj:
-                current_step_obj.execution_res = f"Error during agent setup: {error_message}"
+                current_step_obj.execution_res = (
+                    f"Error during agent setup: {error_message}"
+                )
                 updated_state_changes["current_plan"] = current_plan
         return Command(update=updated_state_changes, goto=END)
+
 
 async def researcher_node(
     state: State, config: RunnableConfig
@@ -609,6 +677,7 @@ async def researcher_node(
         [get_web_search_tool(configurable.max_search_results), crawl_tool],
     )
 
+
 async def coder_node(
     state: State, config: RunnableConfig
 ) -> Command[Literal["research_team"]]:
@@ -620,4 +689,3 @@ async def coder_node(
         "coder",
         [python_repl_tool],
     )
-

@@ -1,4 +1,3 @@
-
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Cache for LLM instances
 _llm_cache: dict[LLMType, BaseChatModel] = {}
 
+
 # New helper function to create LLM from a config dictionary
 def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
     """
@@ -28,9 +28,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
     provider = config_copy.pop("provider", None)
 
     if not provider:
-        raise ValueError(
-            "LLM configuration dictionary must include a 'provider' key."
-        )
+        raise ValueError("LLM configuration dictionary must include a 'provider' key.")
 
     provider = provider.lower()
     model_name = config_copy.pop("model", None)  # Common key for model/deployment
@@ -46,7 +44,9 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
     try:
         if provider == "openai" or provider == "openai_compatible":
             if not model_name:
-                raise ValueError(f"Missing 'model' (model_name) in '{provider}' configuration.")
+                raise ValueError(
+                    f"Missing 'model' (model_name) in '{provider}' configuration."
+                )
             # api_key and base_url are optional for ChatOpenAI if set in env vars
             # but if provided in config, they should be used.
             api_key = config_copy.pop("api_key", None)
@@ -64,27 +64,33 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
 
         elif provider == "azure":
             if not model_name:  # For Azure, 'model' in config is the deployment name
-                raise ValueError(f"Missing 'model' (azure_deployment) in '{provider}' configuration.")
+                raise ValueError(
+                    f"Missing 'model' (azure_deployment) in '{provider}' configuration."
+                )
 
             # Azure specific keys, map them to AzureChatOpenAI parameters
             # From docs: api_base, api_version, api_key
             # AzureChatOpenAI: azure_deployment, openai_api_version, azure_endpoint, openai_api_key
             azure_deployment = model_name
             api_version = config_copy.pop("api_version", None)
-            azure_endpoint = config_copy.pop("api_base", config_copy.pop("azure_endpoint", None))
+            azure_endpoint = config_copy.pop(
+                "api_base", config_copy.pop("azure_endpoint", None)
+            )
             api_key = config_copy.pop("api_key", None)
 
             if not api_version:
                 raise ValueError("Missing 'api_version' in Azure OpenAI configuration.")
             if not azure_endpoint:
-                raise ValueError("Missing 'api_base' or 'azure_endpoint' in Azure OpenAI configuration.")
+                raise ValueError(
+                    "Missing 'api_base' or 'azure_endpoint' in Azure OpenAI configuration."
+                )
             # api_key is optional if set in env
 
             constructor_params = {
                 "azure_deployment": azure_deployment,
                 "openai_api_version": api_version,
                 "azure_endpoint": azure_endpoint,
-                **common_params
+                **common_params,
             }
             if api_key:
                 constructor_params["openai_api_key"] = api_key
@@ -96,7 +102,9 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
             if not model_name:
                 raise ValueError(f"Missing 'model' in '{provider}' configuration.")
 
-            base_url = config_copy.pop("base_url", None)  # Optional, defaults in ChatOllama
+            base_url = config_copy.pop(
+                "base_url", None
+            )  # Optional, defaults in ChatOllama
 
             constructor_params = {"model": model_name, **common_params}
             if base_url:
@@ -106,7 +114,9 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
             return ChatOllama(**constructor_params)
 
         else:
-            raise ValueError(f"Unsupported LLM provider: '{provider}'. Supported providers are 'openai', 'azure', 'ollama', 'openai_compatible'.")
+            raise ValueError(
+                f"Unsupported LLM provider: '{provider}'. Supported providers are 'openai', 'azure', 'ollama', 'openai_compatible'."
+            )
 
     except Exception as e:
         # Catch potential errors during LLM instantiation (e.g., missing keys, invalid values)
@@ -114,6 +124,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
             f"Error instantiating LLM for provider '{provider}' with model '{model_name}'. "
             f"Ensure the configuration is complete and valid. Original error: {str(e)}"
         )
+
 
 def _create_llm_use_conf(llm_type: LLMType, conf: Dict[str, Any]) -> BaseChatModel:
     llm_type_to_expected_key = {
@@ -135,15 +146,16 @@ def _create_llm_use_conf(llm_type: LLMType, conf: Dict[str, Any]) -> BaseChatMod
             f"Configuration for LLM type '{llm_type}' (expected key: '{expected_config_key}') "
             f"not found or is null in conf.yaml. Please check your configuration."
         )
-    
+
     if not isinstance(llm_conf, dict):
         raise ValueError(
             f"Configuration for LLM type '{llm_type}' (expected key: '{expected_config_key}') "
             f"is invalid in conf.yaml. It should be a dictionary, but found type {type(llm_conf).__name__}."
         )
-        
+
     # Delegate instantiation to the new helper function
     return _create_llm_from_config_dict(llm_conf)
+
 
 def get_llm_by_type(
     llm_type: LLMType,
@@ -173,6 +185,7 @@ def get_llm_by_type(
     _llm_cache[llm_type] = llm
     logger.info(f"Cached LLM for type '{llm_type}'.")
     return llm
+
 
 # Initialize LLMs for different purposes - now these will be cached
 basic_llm: BaseChatModel = get_llm_by_type("basic")
