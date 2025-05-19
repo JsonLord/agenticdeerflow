@@ -34,6 +34,7 @@ from src.graph_visualization.models import KnowledgeGraphResponse
 from src.graph_visualization.serializer import serialize_langgraph_state_for_thread
 from src.server.graph_chatbot_models import GraphChatbotRequest, GraphChatbotResponse
 from src.graph_chatbot.chatbot import answer_graph_question
+from src.server.chat_request import CoordinatorFeedbackRequest # New import
 
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ async def chat_stream(request: ChatRequest):
             request.mcp_settings,
             request.enable_background_investigation,
             request.llm_configurations,
+            request.selected_persona,
         ),
         media_type="text/event-stream",
     )
@@ -85,10 +87,11 @@ async def _astream_workflow_generator(
     max_step_num: int,
     max_search_results: int,
     auto_accepted_plan: bool,
-    interrupt_feedback: str,
+    interrupt_feedback: Optional[str],
     mcp_settings: Optional[dict],
-    enable_background_investigation,
+    enable_background_investigation: bool,
     llm_configurations: Optional[Dict[str, Dict[str, Any]]],
+    selected_persona: Optional[str],
 ):
     input_: Any = {
         "messages": messages,
@@ -115,6 +118,337 @@ async def _astream_workflow_generator(
             "max_search_results": max_search_results,
             "mcp_settings": mcp_settings,
             "runtime_llm_configs": llm_configurations,
+            "selected_persona": selected_persona,
+        }
+        # Add other top-level config keys like "recursion_limit" here if needed
+    }
+
+    async for agent, _, event_data in graph.astream(
+        input_,
+        config=graph_config,
+        stream_mode=["messages", "updates"],
+        subgraphs=True,
+    ):
+        if isinstance(event_data, dict):
+            if "__interrupt__" in event_data:
+                yield _make_event(
+                    "interrupt",
+                    {
+                        "thread_id": thread_id,
+                        "id": event_data["__interrupt__"][0].ns[0],
+                        "role": "assistant",
+                        "content": event_data["__interrupt__"][0].value,
+                        "finish_reason": "interrupt",
+                        "options": [
+                            {"text": "Edit plan", "value": "edit_plan"},
+                            {"text": "Start research", "value": "accepted"},
+                        ],
+                    },
+                )
+            continue
+        message_chunk, message_metadata = cast(
+            tuple[BaseMessage, dict[str, any]], event_data
+        )
+        event_stream_message: dict[str, any] = {
+            "thread_id": thread_id,
+            "agent": agent[0].split(":")[0],
+            "id": message_chunk.id,
+            "role": "assistant",
+            "content": message_chunk.content,
+        }
+        if message_chunk.response_metadata.get("finish_reason"):
+            event_stream_message["finish_reason"] = message_chunk.response_metadata.get(
+                "finish_reason"
+            )
+        if isinstance(message_chunk, ToolMessage):
+            # Tool Message - Return the result of the tool call
+            event_stream_message["tool_call_id"] = message_chunk.tool_call_id
+            yield _make_event("tool_call_result", event_stream_message)
+        elif isinstance(message_chunk, AIMessageChunk):
+            # AI Message - Raw message tokens
+            if message_chunk.tool_calls:
+                # AI Message - Tool Call
+                event_stream_message["tool_calls"] = message_chunk.tool_calls
+                event_stream_message["tool_call_chunks"] = (
+                    message_chunk.tool_call_chunks
+                )
+                yield _make_event("tool_calls", event_stream_message)
+            elif message_chunk.tool_call_chunks:
+                # AI Message - Tool Call Chunks
+                event_stream_message["tool_call_chunks"] = (
+                    message_chunk.tool_call_chunks
+                )
+                yield _make_event("tool_call_chunks", event_stream_message)
+            else:
+                # AI Message - Raw message tokens
+                yield _make_event("message_chunk", event_stream_message)
+
+
+def _make_event(event_type: str, data: dict[str, any]):
+    if data.get("content") == "":
+        data.pop("content")
+    return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@app.post("/api/tts")
+async def text_to_speech(request: TTSRequest):
+    """Convert text to speech using volcengine TTS API."""
+    try:
+        app_id = os.getenv("VOLCENGINE_TTS_APPID", "")
+        if not app_id:
+            raise HTTPException(
+                status_code=400, detail="VOLCENGINE_TTS_APPID is not set"
+            )
+        access_token = os.getenv("VOLCENGINE_TTS_ACCESS_TOKEN", "")
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="VOLCENGINE_TTS_ACCESS_TOKEN is not set"
+            )
+        cluster = os.getenv("VOLCENGINE_TTS_CLUSTER", "volcano_tts")
+        voice_type = os.getenv("VOLCENGINE_TTS_VOICE_TYPE", "BV700_V2_streaming")
+
+        tts_client = VolcengineTTS(
+            appid=app_id,
+            access_token=access_token,
+            cluster=cluster,
+            voice_type=voice_type,
+        )
+        # Call the TTS API
+        result = tts_client.text_to_speech(
+            text=request.text[:1024],
+            encoding=request.encoding,
+            speed_ratio=request.speed_ratio,
+            volume_ratio=request.volume_ratio,
+            pitch_ratio=request.pitch_ratio,
+            text_type=request.text_type,
+            with_frontend=request.with_frontend,
+            frontend_type=request.frontend_type,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=str(result["error"]))
+
+        # Decode the base64 audio data
+        audio_data = base64.b64decode(result["audio_data"])
+
+        # Return the audio file
+        return Response(
+            content=audio_data,
+            media_type=f"audio/{request.encoding}",
+            headers={
+                "Content-Disposition": (
+                    f"attachment; filename=tts_output.{request.encoding}"
+                )
+            },
+        )
+    except Exception as e:
+        logger.exception(f"Error in TTS endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/podcast/generate")
+async def generate_podcast(request: GeneratePodcastRequest):
+    try:
+        report_content = request.content
+        print(report_content)
+        workflow = build_podcast_graph()
+        final_state = workflow.invoke({"input": report_content})
+        audio_bytes = final_state["output"]
+        return Response(content=audio_bytes, media_type="audio/mp3")
+    except Exception as e:
+        logger.exception(f"Error occurred during podcast generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ppt/generate")
+async def generate_ppt(request: GeneratePPTRequest):
+    try:
+        report_content = request.content
+        print(report_content)
+        workflow = build_ppt_graph()
+        final_state = workflow.invoke({"input": report_content})
+        generated_file_path = final_state["generated_file_path"]
+        with open(generated_file_path, "rb") as f:
+            ppt_bytes = f.read()
+        return Response(
+            content=ppt_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        )
+    except Exception as e:
+        logger.exception(f"Error occurred during ppt generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/prose/generate")
+async def generate_prose(request: GenerateProseRequest):
+    try:
+        logger.info(f"Generating prose for prompt: {request.prompt}")
+        workflow = build_prose_graph()
+        events = workflow.astream(
+            {
+                "content": request.prompt,
+                "option": request.option,
+                "command": request.command,
+            },
+            stream_mode="messages",
+            subgraphs=True,
+        )
+        return StreamingResponse(
+            (f"data: {event[0].content}\n\n" async for _, event in events),
+            media_type="text/event-stream",
+        )
+    except Exception as e:
+        logger.exception(f"Error occurred during prose generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/mcp/server/metadata", response_model=MCPServerMetadataResponse)
+async def mcp_server_metadata(request: MCPServerMetadataRequest):
+    """Get information about an MCP server."""
+    try:
+        # Set default timeout with a longer value for this endpoint
+        timeout = 300  # Default to 300 seconds for this endpoint
+
+        # Use custom timeout from request if provided
+        if request.timeout_seconds is not None:
+            timeout = request.timeout_seconds
+
+        # Load tools from the MCP server using the utility function
+        tools = await load_mcp_tools(
+            server_type=request.transport,
+            command=request.command,
+            args=request.args,
+            url=request.url,
+            env=request.env,
+            timeout_seconds=timeout,
+        )
+
+        # Create the response with tools
+        response = MCPServerMetadataResponse(
+            transport=request.transport,
+            command=request.command,
+            args=request.args,
+            url=request.url,
+            env=request.env,
+            tools=tools,
+        )
+
+        return response
+    except Exception as e:
+        if not isinstance(e, HTTPException):
+            logger.exception(f"Error in MCP server metadata endpoint: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        raise
+
+
+@app.get("/api/graph_state/{thread_id}", response_model=KnowledgeGraphResponse)
+async def get_graph_state_snapshot(thread_id: str):
+    """
+    Retrieves a snapshot of the graph state for a given thread_id,
+    serialized for visualization.
+    """
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+    
+    try:
+        # The 'graph' instance is already initialized in this file
+        graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
+        return graph_data
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
+@app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
+async def query_graph_chatbot(request: GraphChatbotRequest):
+    """
+    Receives a user's question about the graph state for a specific thread_id
+    and returns an LLM-generated answer based on the graph's current state.
+    """
+    if not request.thread_id:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+    if not request.user_question:
+        raise HTTPException(status_code=400, detail="user_question is required")
+
+    try:
+        # The 'graph' instance is globally available in this file
+        answer = await answer_graph_question(
+            thread_id=request.thread_id,
+            user_question=request.user_question,
+            graph_executable=graph
+        )
+        return GraphChatbotResponse(answer=answer)
+        # The 'graph' instance is already initialized in this file
+        graph_data = serialize_langgraph_state_for_thread(graph, thread_id)
+        return graph_data
+    except HTTPException as http_exc: # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(
+            f"Error processing graph chatbot query for thread {request.thread_id}: {str(e)}",
+            exc_info=True
+        )
+        raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
+
+
+@app.post("/api/coordinator_feedback")
+async def submit_coordinator_feedback(request: CoordinatorFeedbackRequest):
+    """
+    Receives user feedback about a specific coordinator persona and logs it.
+    For V1, this endpoint simply logs the feedback.
+    """
+    if not request.persona_id:
+        raise HTTPException(status_code=400, detail="persona_id is required")
+    if not request.feedback_text: # Also check if feedback_text is empty string after trimming
+        raise HTTPException(status_code=400, detail="feedback_text is required and cannot be empty")
+
+    logger.info(
+        f"Coordinator Feedback Received: Persona ID='{request.persona_id}', Feedback='{request.feedback_text}'"
+    )
+    
+    # In a more advanced version, this feedback could be stored in a database,
+    # sent to an analytics platform, or used for fine-tuning.
+    return {"message": "Feedback received successfully"}
+
+async def _astream_workflow_generator(
+    messages: List[ChatMessage],
+    thread_id: str,
+    max_plan_iterations: int,
+    max_step_num: int,
+    max_search_results: int,
+    auto_accepted_plan: bool,
+    interrupt_feedback: Optional[str],
+    mcp_settings: Optional[dict],
+    enable_background_investigation: bool,
+    llm_configurations: Optional[Dict[str, Dict[str, Any]]],
+    selected_persona: Optional[str],
+):
+    input_: Any = {
+        "messages": messages,
+        "plan_iterations": 0,
+        "final_report": "",
+        "current_plan": None,
+        "observations": [],
+        "auto_accepted_plan": auto_accepted_plan,
+        "enable_background_investigation": enable_background_investigation,
+    }
+    if not auto_accepted_plan and interrupt_feedback:
+        resume_msg = f"[{interrupt_feedback}]"
+        # add the last message to the resume message
+        if messages:
+            resume_msg += f" {messages[-1]['content']}"
+        input_ = Command(resume=resume_msg)
+
+    # Construct the config dictionary with a 'configurable' key
+    graph_config = {
+        "configurable": {
+            "thread_id": thread_id,
+            "max_plan_iterations": max_plan_iterations,
+            "max_step_num": max_step_num,
+            "max_search_results": max_search_results,
+            "mcp_settings": mcp_settings,
+            "runtime_llm_configs": llm_configurations,
+            "selected_persona": selected_persona,
         }
         # Add other top-level config keys like "recursion_limit" here if needed
     }

@@ -1,8 +1,9 @@
+
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, X } from "lucide-react";
+import { ArrowUp, X, ThumbsUp } from "lucide-react";
 import {
   type KeyboardEvent,
   useCallback,
@@ -29,6 +30,7 @@ export function InputBox({
   onSend,
   onCancel,
   onRemoveFeedback,
+  onOpenCoordinatorFeedbackModal,
 }: {
   className?: string;
   size?: "large" | "normal";
@@ -37,6 +39,7 @@ export function InputBox({
   onSend?: (message: string, options?: { interruptFeedback?: string }) => void;
   onCancel?: () => void;
   onRemoveFeedback?: () => void;
+  onOpenCoordinatorFeedbackModal?: () => void;
 }) {
   const [message, setMessage] = useState("");
   const [imeStatus, setImeStatus] = useState<"active" | "inactive">("inactive");
@@ -144,7 +147,7 @@ export function InputBox({
         />
       </div>
       <div className="flex items-center px-4 py-2">
-        <div className="flex grow">
+        <div className="flex grow items-center gap-2">
           <Tooltip
             className="max-w-60"
             title={
@@ -174,6 +177,26 @@ export function InputBox({
               <Detective /> Investigation
             </Button>
           </Tooltip>
+          <Tooltip title="Feedback on Coordinator">
+            <Button
+              variant="ghost"
+              size="icon"
+
+              onClick={() => {
+                if (onOpenCoordinatorFeedbackModal) {
+                  onOpenCoordinatorFeedbackModal();
+                } else {
+                  // This else case is unlikely if prop is always passed by Main
+                  console.warn("onOpenCoordinatorFeedbackModal not provided to InputBox");
+                }
+              }}
+    
+              className="text-muted-foreground hover:text-accent-foreground"
+              aria-label="Feedback on Coordinator"
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Tooltip title={responding ? "Stop" : "Send"}>
@@ -197,3 +220,4 @@ export function InputBox({
     </div>
   );
 }
+

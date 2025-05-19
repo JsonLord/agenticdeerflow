@@ -10,8 +10,8 @@ import {
   type LLMRoleConfigurations,
   type LLMRole,
   type LLMProviderConfig
-} from "~/core/store/settings-store"; // Added imports
-
+} from "~/core/store/settings-store";
+import { useStore } from "~/core/store/store";
 import { resolveServiceURL } from "./resolve-service-url";
 import type { ChatEvent } from "./types";
 
@@ -46,8 +46,8 @@ export async function* chatStream(
   }
 
   // Retrieve LLM configurations from the settings store
-  const settings = useSettingsStore.getState();
-  const llmConfigurationsFromStore: LLMRoleConfigurations | undefined = settings.llmConfigurations;
+  const settingsStoreState = useSettingsStore.getState();
+  const llmConfigurationsFromStore: LLMRoleConfigurations | undefined = settingsStoreState.llmConfigurations;
   const activeLlmConfigsForApi: Record<string, LLMProviderConfig> = {};
 
   if (llmConfigurationsFromStore) {
@@ -60,10 +60,15 @@ export async function* chatStream(
     }
   }
 
+  // Retrieve selected coordinator persona from the main store
+  const mainStoreState = useStore.getState();
+  const selectedPersona = mainStoreState.selectedCoordinatorPersona;
+
   const requestBody = {
     messages: [{ role: "user", content: userMessage }],
     ...params,
     llm_configurations: Object.keys(activeLlmConfigsForApi).length > 0 ? activeLlmConfigsForApi : undefined,
+    selected_persona: selectedPersona,
   };
 
   const stream = fetchStream(resolveServiceURL("chat/stream"), {

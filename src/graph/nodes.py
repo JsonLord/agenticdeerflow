@@ -277,7 +277,9 @@ def coordinator_node(
         coordinator_llm_role = AGENT_LLM_MAP["coordinator"]
         coordinator_runtime_config = runtime_llm_configs.get(coordinator_llm_role) if runtime_llm_configs else None
 
-        messages = apply_prompt_template("coordinator", state)
+
+        messages = apply_prompt_template("coordinator", state, config.configurable)
+    
         response = (
             get_llm_by_type(
                 coordinator_llm_role,
@@ -618,3 +620,4 @@ async def coder_node(
         "coder",
         [python_repl_tool],
     )
+

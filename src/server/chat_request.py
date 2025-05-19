@@ -58,9 +58,22 @@ class ChatRequest(BaseModel):
     llm_configurations: Optional[Dict[str, Dict[str, Any]]] = Field(
         None, description="Runtime LLM configurations for different roles (e.g., basic, reasoning, vision)"
     )
+    selected_persona: Optional[str] = Field(
+        None, description="The ID of the selected coordinator persona (e.g., 'default', 'analytical_researcher')"
+    )
 
 
 class TTSRequest(BaseModel):
+    text: str
+    encoding: Optional[str] = "mp3"
+    speed_ratio: Optional[float] = 1.0
+    volume_ratio: Optional[float] = 1.0
+    pitch_ratio: Optional[float] = 1.0
+    text_type: Optional[str] = "ssml"
+    with_frontend: Optional[bool] = True
+    frontend_type: Optional[str] = "unitTson"
+
+
     text: str = Field(..., description="The text to convert to speech")
     voice_type: Optional[str] = Field(
         "BV700_V2_streaming", description="The voice type to use"
@@ -77,14 +90,34 @@ class TTSRequest(BaseModel):
 
 
 class GeneratePodcastRequest(BaseModel):
+    content: str
+
+
     content: str = Field(..., description="The content of the podcast")
 
 
 class GeneratePPTRequest(BaseModel):
+    content: str
+
+
     content: str = Field(..., description="The content of the ppt")
 
 
 class GenerateProseRequest(BaseModel):
+    prompt: str
+    content: str
+    locale: Optional[str] = "en-US"
+    option: Optional[str] = "polish"  # Default to polish
+    command: Optional[str] = "polish" # Default to polish
+
+
+class CoordinatorFeedbackRequest(BaseModel):
+    """
+    Request model for submitting feedback on a coordinator persona.
+    """
+    persona_id: str
+    feedback_text: str
+
     prompt: str = Field(..., description="The content of the prose")
     option: str = Field(..., description="The option of the prose writer")
     command: Optional[str] = Field(

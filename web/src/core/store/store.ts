@@ -1,3 +1,4 @@
+
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -12,6 +13,7 @@ import { mergeMessage } from "../messages";
 import { parseJSON } from "../utils";
 
 import { getChatStreamSettings } from "./settings-store";
+import { getDefaultPersonaId } from "~/app/chat/personas";
 
 const THREAD_ID = nanoid();
 
@@ -25,14 +27,18 @@ export const useStore = create<{
   researchReportIds: Map<string, string>;
   researchActivityIds: Map<string, string[]>;
   ongoingResearchId: string | null;
+
   openResearchId: string | null;
+  selectedCoordinatorPersona: string;
 
   appendMessage: (message: Message) => void;
   updateMessage: (message: Message) => void;
   updateMessages: (messages: Message[]) => void;
   openResearch: (researchId: string | null) => void;
   closeResearch: () => void;
+
   setOngoingResearch: (researchId: string | null) => void;
+  setSelectedCoordinatorPersona: (personaId: string) => void;
 }>((set) => ({
   responding: false,
   threadId: THREAD_ID,
@@ -43,7 +49,9 @@ export const useStore = create<{
   researchReportIds: new Map<string, string>(),
   researchActivityIds: new Map<string, string[]>(),
   ongoingResearchId: null,
+
   openResearchId: null,
+  selectedCoordinatorPersona: getDefaultPersonaId(),
 
   appendMessage(message: Message) {
     set((state) => ({
@@ -69,8 +77,12 @@ export const useStore = create<{
   closeResearch() {
     set({ openResearchId: null });
   },
+
   setOngoingResearch(researchId: string | null) {
     set({ ongoingResearchId: researchId });
+  },
+  setSelectedCoordinatorPersona(personaId: string) {
+    set({ selectedCoordinatorPersona: personaId });
   },
 }));
 

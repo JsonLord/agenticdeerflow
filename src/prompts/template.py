@@ -1,12 +1,16 @@
+
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
 import os
 import dataclasses
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from typing import List, Optional, Dict, Any
+import jinja2
+from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+
 from langgraph.prebuilt.chat_agent_executor import AgentState
-from src.config.configuration import Configuration
+# from src.config.configuration import Configuration
 
 # Initialize Jinja2 environment
 env = Environment(
@@ -16,50 +20,95 @@ env = Environment(
     lstrip_blocks=True,
 )
 
-
-def get_prompt_template(prompt_name: str) -> str:
+def get_prompt_template(prompt_name: str, selected_persona: Optional[str] = None) -> jinja2.Template:
     """
-    Load and return a prompt template using Jinja2.
+    Load and return a Jinja2 template object.
+    For 'coordinator' prompt_name, attempts to load a persona-specific template
+    from the 'coordinator_personas' subdirectory, falling back to a default.
 
     Args:
-        prompt_name: Name of the prompt template file (without .md extension)
+        prompt_name: Name of the prompt (e.g., "coordinator", "planner").
+        selected_persona: Optional persona ID for the coordinator.
 
     Returns:
-        The template string with proper variable substitution syntax
-    """
-    try:
-        template = env.get_template(f"{prompt_name}.md")
-        return template.render()
-    except Exception as e:
-        raise ValueError(f"Error loading template {prompt_name}: {e}")
+        A Jinja2 Template object.
 
+    Raises:
+        ValueError: If the template or its fallback cannot be loaded.
+    """
+    template_path_to_try = ""
+    if prompt_name == "coordinator":
+        default_coordinator_path = os.path.join("coordinator_personas", "default.md")
+        if selected_persona:
+            persona_specific_path = os.path.join("coordinator_personas", f"{selected_persona}.md")
+            try:
+                # print(f"Attempting to load persona template: {persona_specific_path}") # Debug
+                return env.get_template(persona_specific_path)
+            except TemplateNotFound:
+                # print(f"Persona template '{persona_specific_path}' not found. Falling back to default.") # Debug
+                pass  # Fall through to load default
+
+        # Load default if no persona selected or if persona-specific not found
+        try:
+            # print(f"Attempting to load default coordinator template: {default_coordinator_path}") # Debug
+            return env.get_template(default_coordinator_path)
+        except TemplateNotFound as e_default:
+            raise ValueError(
+                f"Error loading default coordinator template '{default_coordinator_path}'. "
+                f"Ensure 'src/prompts/coordinator_personas/default.md' exists. Original error: {e_default}"
+            ) from e_default
+    else:
+        # For non-coordinator prompts
+        template_path_to_try = f"{prompt_name}.md"
+        try:
+            return env.get_template(template_path_to_try)
+        except TemplateNotFound as e:
+            raise ValueError(f"Error loading template '{template_path_to_try}': {e}") from e
 
 def apply_prompt_template(
-    prompt_name: str, state: AgentState, configurable: Configuration = None
+    prompt_name: str, 
+    state: AgentState, 
+    configurable: Optional[Dict[str, Any]] = None
 ) -> list:
     """
     Apply template variables to a prompt template and return formatted messages.
 
     Args:
-        prompt_name: Name of the prompt template to use
-        state: Current agent state containing variables to substitute
+        prompt_name: Name of the prompt template to use.
+        state: Current agent state containing variables to substitute.
+        configurable: Optional dictionary containing runtime configurations,
+                      which might include 'selected_persona'.
 
     Returns:
-        List of messages with the system prompt as the first message
+        List of messages with the system prompt as the first message.
     """
     # Convert state to dict for template rendering
+    # AgentState is a TypedDict, so it can be directly unpacked if all keys are strings.
+    # Or access items using state.get("key") or state["key"]
     state_vars = {
         "CURRENT_TIME": datetime.now().strftime("%a %b %d %Y %H:%M:%S %z"),
-        **state,
     }
+    # Merge state dictionary. AgentState might not be directly unpackable with ** if it has non-string keys
+    # or if we want to be more explicit.
+    for key, value in state.items():
+        state_vars[key] = value
 
-    # Add configurable variables
     if configurable:
-        state_vars.update(dataclasses.asdict(configurable))
+        state_vars.update(configurable)
+
+    selected_persona: Optional[str] = None
+    if configurable:
+        selected_persona = configurable.get("selected_persona")
 
     try:
-        template = env.get_template(f"{prompt_name}.md")
-        system_prompt = template.render(**state_vars)
-        return [{"role": "system", "content": system_prompt}] + state["messages"]
+        template_obj = get_prompt_template(prompt_name, selected_persona)
+        system_prompt = template_obj.render(**state_vars)
+        
+        messages_from_state = state.get("messages", [])
+        return [{"role": "system", "content": system_prompt}] + messages_from_state
     except Exception as e:
-        raise ValueError(f"Error applying template {prompt_name}: {e}")
+        # Include prompt_name and selected_persona in the error for better context
+        persona_info = f" (persona: {selected_persona})" if selected_persona else ""
+        raise ValueError(
+            f"Error applying template '{prompt_name}'{persona_info}: {e}"
+        ) from e
