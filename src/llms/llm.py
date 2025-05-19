@@ -14,17 +14,40 @@ _llm_cache: dict[LLMType, ChatOpenAI] = {}
 
 
 def _create_llm_use_conf(llm_type: LLMType, conf: Dict[str, Any]) -> ChatOpenAI:
-    llm_type_map = {
-        "reasoning": conf.get("REASONING_MODEL"),
-        "basic": conf.get("BASIC_MODEL"),
-        "vision": conf.get("VISION_MODEL"),
+    llm_type_to_expected_key = {
+        "reasoning": "REASONING_MODEL",
+        "basic": "BASIC_MODEL",
+        "vision": "VISION_MODEL",
     }
-    llm_conf = llm_type_map.get(llm_type)
-    if not llm_conf:
-        raise ValueError(f"Unknown LLM type: {llm_type}")
+
+    if llm_type not in llm_type_to_expected_key:
+        raise ValueError(
+            f"Unknown LLM type: '{llm_type}'. Supported types are: {list(llm_type_to_expected_key.keys())}"
+        )
+
+    expected_config_key = llm_type_to_expected_key[llm_type]
+    llm_conf = conf.get(expected_config_key)
+
+    if llm_conf is None:
+        raise ValueError(
+            f"Configuration for LLM type '{llm_type}' (expected key: '{expected_config_key}') "
+            f"not found or is null in conf.yaml. Please check your configuration."
+        )
+    
     if not isinstance(llm_conf, dict):
-        raise ValueError(f"Invalid LLM Conf: {llm_type}")
-    return ChatOpenAI(**llm_conf)
+        raise ValueError(
+            f"Configuration for LLM type '{llm_type}' (expected key: '{expected_config_key}') "
+            f"is invalid in conf.yaml. It should be a dictionary, but found type {type(llm_conf).__name__}."
+        )
+        
+    try:
+        return ChatOpenAI(**llm_conf)
+    except Exception as e:
+        # Catch potential errors during ChatOpenAI instantiation (e.g., missing keys in llm_conf)
+        raise ValueError(
+            f"Error instantiating ChatOpenAI for LLM type '{llm_type}' with configuration key '{expected_config_key}'. "
+            f"Ensure the configuration in conf.yaml is complete and valid. Original error: {str(e)}"
+        )
 
 
 def get_llm_by_type(
