@@ -53,6 +53,8 @@ def background_investigation_node(
     updated_state_changes = {}
     try:
         configurable = Configuration.from_runnable_config(config)
+        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+
         query = state["messages"][-1].content
         background_investigation_results = None
         if SELECTED_SEARCH_ENGINE == SearchEngine.TAVILY:
@@ -104,6 +106,10 @@ def planner_node(
     full_response = ""
     try:
         configurable = Configuration.from_runnable_config(config)
+        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        planner_llm_role = AGENT_LLM_MAP["planner"]
+        planner_runtime_config = runtime_llm_configs.get(planner_llm_role) if runtime_llm_configs else None
+
         plan_iterations = state.get("plan_iterations", 0)
         messages = apply_prompt_template("planner", state, configurable)
 
@@ -124,12 +130,18 @@ def planner_node(
             ]
 
         if AGENT_LLM_MAP["planner"] == "basic":
-            llm = get_llm_by_type(AGENT_LLM_MAP["planner"]).with_structured_output(
+            llm = get_llm_by_type(
+                planner_llm_role,
+                runtime_config_dict=planner_runtime_config
+            ).with_structured_output(
                 Plan,
                 method="json_mode",
             )
         else:
-            llm = get_llm_by_type(AGENT_LLM_MAP["planner"])
+            llm = get_llm_by_type(
+                planner_llm_role,
+                runtime_config_dict=planner_runtime_config
+            )
 
         if plan_iterations >= configurable.max_plan_iterations:
             logger.warning(f"Max plan iterations ({configurable.max_plan_iterations}) reached. Going to reporter.")
@@ -255,15 +267,22 @@ def human_feedback_node(
         return Command(update=updated_state_changes, goto=END)
 
 def coordinator_node(
-    state: State
+    state: State, config: RunnableConfig
 ) -> Command[Literal["planner", "background_investigator", "__end__"]]:
     node_name = "coordinator"
     logger.info(f"{node_name} talking.")
     updated_state_changes = {}
     try:
+        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        coordinator_llm_role = AGENT_LLM_MAP["coordinator"]
+        coordinator_runtime_config = runtime_llm_configs.get(coordinator_llm_role) if runtime_llm_configs else None
+
         messages = apply_prompt_template("coordinator", state)
         response = (
-            get_llm_by_type(AGENT_LLM_MAP["coordinator"])
+            get_llm_by_type(
+                coordinator_llm_role,
+                runtime_config_dict=coordinator_runtime_config
+            )
             .bind_tools([handoff_to_planner])
             .invoke(messages)
         )
@@ -304,11 +323,15 @@ def coordinator_node(
         }
         return Command(update=updated_state_changes, goto=END)
 
-def reporter_node(state: State) -> Command:
+def reporter_node(state: State, config: RunnableConfig) -> Command:
     node_name = "reporter"
     logger.info(f"{node_name} write final report")
     updated_state_changes = {}
     try:
+        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        reporter_llm_role = AGENT_LLM_MAP["reporter"]
+        reporter_runtime_config = runtime_llm_configs.get(reporter_llm_role) if runtime_llm_configs else None
+
         current_plan = state.get("current_plan")
         if not isinstance(current_plan, Plan):
             raise ValueError(f"Reporter expected a Plan object for current_plan, got {type(current_plan)}")
@@ -339,7 +362,10 @@ def reporter_node(state: State) -> Command:
                 )
             )
         logger.debug(f"Current invoke messages: {invoke_messages}")
-        response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(invoke_messages)
+        response = get_llm_by_type(
+            reporter_llm_role,
+            runtime_config_dict=reporter_runtime_config
+        ).invoke(invoke_messages)
         response_content = response.content
         logger.info(f"reporter response: {response_content}")
 
@@ -498,6 +524,10 @@ async def _setup_and_execute_agent_step(
     updated_state_changes = {}
     try:
         configurable = Configuration.from_runnable_config(config)
+        runtime_llm_configs = config.configurable.get("runtime_llm_configs") if config and hasattr(config, 'configurable') else None
+        agent_llm_role = agent_type
+        agent_runtime_config = runtime_llm_configs.get(agent_llm_role) if runtime_llm_configs else None
+
         mcp_servers = {}
         enabled_tools = {}
 
@@ -525,9 +555,21 @@ async def _setup_and_execute_agent_step(
                             f"Powered by '{enabled_tools[tool_instance.name]}'.\n{tool_instance.description}"
                         )
                         loaded_tools.append(tool_instance)
-                agent_to_execute = create_agent(agent_type, agent_type, loaded_tools, agent_type)
+                agent_to_execute = create_agent(
+                    agent_type,
+                    agent_llm_role,
+                    loaded_tools,
+                    agent_type,
+                    llm_runtime_config_dict=agent_runtime_config
+                )
         else:
-            agent_to_execute = create_agent(agent_type, agent_type, default_tools, agent_type)
+            agent_to_execute = create_agent(
+                agent_type,
+                agent_llm_role,
+                default_tools,
+                agent_type,
+                llm_runtime_config_dict=agent_runtime_config
+            )
 
         return await _execute_agent_step(state, agent_to_execute, agent_type)
 

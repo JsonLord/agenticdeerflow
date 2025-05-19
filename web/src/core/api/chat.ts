@@ -1,5 +1,3 @@
-// Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
-// SPDX-License-Identifier: MIT
 
 import { env } from "~/env";
 
@@ -7,6 +5,12 @@ import type { MCPServerMetadata } from "../mcp";
 import { extractReplayIdFromSearchParams } from "../replay/get-replay-id";
 import { fetchStream } from "../sse";
 import { sleep } from "../utils";
+import {
+  useSettingsStore,
+  type LLMRoleConfigurations,
+  type LLMRole,
+  type LLMProviderConfig
+} from "~/core/store/settings-store"; // Added imports
 
 import { resolveServiceURL } from "./resolve-service-url";
 import type { ChatEvent } from "./types";
@@ -40,11 +44,30 @@ export async function* chatStream(
   ) {
     return yield* chatReplayStream(userMessage, params, options);
   }
+
+  // Retrieve LLM configurations from the settings store
+  const settings = useSettingsStore.getState();
+  const llmConfigurationsFromStore: LLMRoleConfigurations | undefined = settings.llmConfigurations;
+  const activeLlmConfigsForApi: Record<string, LLMProviderConfig> = {};
+
+  if (llmConfigurationsFromStore) {
+    for (const role in llmConfigurationsFromStore) {
+      const config = llmConfigurationsFromStore[role as LLMRole];
+      if (config && config.provider !== "") {
+        // Only include configurations where a provider is explicitly set
+        activeLlmConfigsForApi[role] = config;
+      }
+    }
+  }
+
+  const requestBody = {
+    messages: [{ role: "user", content: userMessage }],
+    ...params,
+    llm_configurations: Object.keys(activeLlmConfigsForApi).length > 0 ? activeLlmConfigsForApi : undefined,
+  };
+
   const stream = fetchStream(resolveServiceURL("chat/stream"), {
-    body: JSON.stringify({
-      messages: [{ role: "user", content: userMessage }],
-      ...params,
-    }),
+    body: JSON.stringify(requestBody),
     signal: options.abortSignal,
   });
   for await (const event of stream) {

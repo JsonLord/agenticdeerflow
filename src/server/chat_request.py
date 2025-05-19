@@ -3,6 +3,8 @@
 
 from typing import List, Optional, Union
 
+from typing import List, Optional, Union, Dict, Any # Added Dict, Any
+
 from pydantic import BaseModel, Field
 
 
@@ -52,6 +54,9 @@ class ChatRequest(BaseModel):
     )
     enable_background_investigation: Optional[bool] = Field(
         True, description="Whether to get background investigation before plan"
+    )
+    llm_configurations: Optional[Dict[str, Dict[str, Any]]] = Field(
+        None, description="Runtime LLM configurations for different roles (e.g., basic, reasoning, vision)"
     )
 
 

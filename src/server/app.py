@@ -1,3 +1,4 @@
+
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
@@ -5,7 +6,7 @@ import base64
 import json
 import logging
 import os
-from typing import List, cast
+from typing import List, cast, Optional, Dict, Any
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -71,6 +72,7 @@ async def chat_stream(request: ChatRequest):
             request.interrupt_feedback,
             request.mcp_settings,
             request.enable_background_investigation,
+            request.llm_configurations,
         ),
         media_type="text/event-stream",
     )
@@ -84,10 +86,11 @@ async def _astream_workflow_generator(
     max_search_results: int,
     auto_accepted_plan: bool,
     interrupt_feedback: str,
-    mcp_settings: dict,
+    mcp_settings: Optional[dict],
     enable_background_investigation,
+    llm_configurations: Optional[Dict[str, Dict[str, Any]]],
 ):
-    input_ = {
+    input_: Any = {
         "messages": messages,
         "plan_iterations": 0,
         "final_report": "",
@@ -102,15 +105,23 @@ async def _astream_workflow_generator(
         if messages:
             resume_msg += f" {messages[-1]['content']}"
         input_ = Command(resume=resume_msg)
-    async for agent, _, event_data in graph.astream(
-        input_,
-        config={
+
+    # Construct the config dictionary with a 'configurable' key
+    graph_config = {
+        "configurable": {
             "thread_id": thread_id,
             "max_plan_iterations": max_plan_iterations,
             "max_step_num": max_step_num,
             "max_search_results": max_search_results,
             "mcp_settings": mcp_settings,
-        },
+            "runtime_llm_configs": llm_configurations,
+        }
+        # Add other top-level config keys like "recursion_limit" here if needed
+    }
+
+    async for agent, _, event_data in graph.astream(
+        input_,
+        config=graph_config,
         stream_mode=["messages", "updates"],
         subgraphs=True,
     ):
@@ -344,8 +355,6 @@ async def get_graph_state_snapshot(thread_id: str):
     except Exception as e:
         logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
-
-
 @app.post("/api/graph_chatbot/query", response_model=GraphChatbotResponse)
 async def query_graph_chatbot(request: GraphChatbotRequest):
     """
@@ -376,8 +385,5 @@ async def query_graph_chatbot(request: GraphChatbotRequest):
             exc_info=True
         )
         raise HTTPException(status_code=500, detail="Error processing your question about the graph.")
-
         logger.error(f"Error generating graph state for thread {thread_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating graph state: {str(e)}")
-
-
