@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 # Import only the components we need for testing
 from src.prompts.template import get_prompt_template, apply_prompt_template
 
+
 class TestApplicationMock:
     """Test suite for verifying the application functionality with mocks."""
 
@@ -59,7 +60,7 @@ class TestApplicationMock:
 
         logger.info("Template loading test passed")
 
+
 # Run the tests if this file is executed directly
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])
-
