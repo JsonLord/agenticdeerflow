@@ -5,6 +5,7 @@ import { useSettingsStore, changeSettings, LLMProviderConfig } from '~/core/stor
 import { chatStream } from '~/core/api/chat';
 import { nanoid } from 'nanoid';
 import { useStore } from '~/core/store/store';
+import type { MCPServerMetadata } from '~/core/mcp';
 
 /**
  * Test suite for verifying the full web application functionality
@@ -143,10 +144,10 @@ export async function testLLMConfigPassing() {
     }
     
     if (allConfigsCorrect) {
-      console.log('✅ Test passed! LLM configurations were correctly passed to the API.');
+      console.log('\u2705 Test passed! LLM configurations were correctly passed to the API.');
       return true;
     } else {
-      console.error('❌ Test failed! LLM configurations were not correctly passed to the API.');
+      console.error('\u274c Test failed! LLM configurations were not correctly passed to the API.');
       return false;
     }
   } finally {
@@ -215,10 +216,10 @@ export async function testSettingsStore() {
   }
   
   if (allConfigsCorrect) {
-    console.log('✅ Test passed! Settings store was correctly updated.');
+    console.log('\u2705 Test passed! Settings store was correctly updated.');
     return true;
   } else {
-    console.error('❌ Test failed! Settings store was not correctly updated.');
+    console.error('\u274c Test failed! Settings store was not correctly updated.');
     return false;
   }
 }
@@ -277,7 +278,7 @@ export async function testMainStore() {
     return false;
   }
   
-  console.log('✅ Test passed! Main store is working correctly.');
+  console.log('\u2705 Test passed! Main store is working correctly.');
   return true;
 }
 
@@ -287,44 +288,52 @@ export async function testMainStore() {
 export async function testMCPSettings() {
   console.log('Starting MCP settings test...');
   
-  // 1. Set up test MCP settings
-  const testMCPSettings = {
-    servers: {
-      'test-server': {
-        name: 'Test Server',
-        url: 'http://localhost:8000',
-        enabled: true,
-        enabled_tools: ['test-tool'],
-        add_to_agents: ['researcher'],
-      },
-    },
+  // 1. Set up test MCP server
+  const testServer: MCPServerMetadata = {
+    name: 'test-server',
+    transport: 'sse',
+    url: 'http://localhost:8000',
+    enabled: true,
+    tools: [
+      {
+        name: 'test-tool',
+        description: 'A test tool',
+      }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
   
   // Apply the configuration to the settings store
-  changeSettings({ mcpSettings: testMCPSettings });
+  changeSettings({ mcpServers: [testServer] });
   
   // Get the current settings
   const settings = useSettingsStore.getState();
   
   // Verify that the settings were updated correctly
-  if (!settings.mcpSettings) {
-    console.error('MCP settings not found in settings store!');
+  if (!settings.mcpServers) {
+    console.error('MCP servers not found in settings store!');
     return false;
   }
   
-  if (!settings.mcpSettings.servers) {
-    console.error('MCP servers not found in settings!');
+  if (settings.mcpServers.length === 0) {
+    console.error('No MCP servers found in settings!');
     return false;
   }
   
-  const server = settings.mcpSettings.servers['test-server'];
+  const server = settings.mcpServers[0];
   if (!server) {
     console.error('Test server not found in MCP settings!');
     return false;
   }
   
-  if (server.name !== 'Test Server') {
-    console.error(`Incorrect server name: ${server.name} (expected: Test Server)`);
+  if (server.name !== 'test-server') {
+    console.error(`Incorrect server name: ${server.name} (expected: test-server)`);
+    return false;
+  }
+  
+  if (server.transport !== 'sse') {
+    console.error(`Incorrect server transport: ${server.transport} (expected: sse)`);
     return false;
   }
   
@@ -338,17 +347,12 @@ export async function testMCPSettings() {
     return false;
   }
   
-  if (!Array.isArray(server.enabled_tools) || server.enabled_tools[0] !== 'test-tool') {
-    console.error(`Incorrect enabled tools: ${server.enabled_tools} (expected: ['test-tool'])`);
+  if (!Array.isArray(server.tools) || server.tools[0]?.name !== 'test-tool') {
+    console.error(`Incorrect tools: ${JSON.stringify(server.tools)} (expected: [{ name: 'test-tool', ... }])`);
     return false;
   }
   
-  if (!Array.isArray(server.add_to_agents) || server.add_to_agents[0] !== 'researcher') {
-    console.error(`Incorrect add_to_agents: ${server.add_to_agents} (expected: ['researcher'])`);
-    return false;
-  }
-  
-  console.log('✅ Test passed! MCP settings are working correctly.');
+  console.log('\u2705 Test passed! MCP settings are working correctly.');
   return true;
 }
 
@@ -366,7 +370,7 @@ export async function runAllTests() {
   const allPassed = Object.values(results).every(result => result === true);
   
   console.log('Test results:', results);
-  console.log(`Overall result: ${allPassed ? '✅ All tests passed!' : '❌ Some tests failed!'}`);
+  console.log(`Overall result: ${allPassed ? '\u2705 All tests passed!' : '\u274c Some tests failed!'}`);
   
   return {
     ...results,
