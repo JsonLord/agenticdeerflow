@@ -6,6 +6,7 @@ import sys
 import pytest
 import json
 import logging
+import requests
 from typing import Dict, Any, List, Optional
 from unittest.mock import patch, MagicMock
 
@@ -14,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Add the src directory to the path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 # Import application components
 from src.prompts.template import get_prompt_template, apply_prompt_template
@@ -22,6 +23,7 @@ from src.server.chat_request import ChatRequest, ChatMessage
 from src.server.mcp_request import MCPServerMetadataRequest
 from src.config.configuration import Configuration
 from src.graph.builder import build_graph_with_memory
+from langchain_openai import ChatOpenAI
 
 # Test configuration
 TEST_CONFIG = {
@@ -78,14 +80,13 @@ class TestApplicationFunctionality:
         
         logger.info("Template loading test passed")
 
-    @patch('src.llms.llm.OpenAI')
-    def test_chat_request_processing(self, mock_openai):
+    @patch('src.llms.llm._create_llm_from_config_dict')
+    def test_chat_request_processing(self, mock_create_llm):
         """Test that chat requests can be processed correctly."""
-        # Mock the OpenAI response
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "This is a mock response"
-        mock_openai.return_value.chat.completions.create.return_value = mock_response
+        # Mock the LLM creation
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = "This is a mock response"
+        mock_create_llm.return_value = mock_llm
         
         # Create a chat request
         chat_request = ChatRequest(
@@ -109,7 +110,7 @@ class TestApplicationFunctionality:
         
         logger.info("Chat request processing test passed")
 
-    @patch('src.server.mcp_utils.requests.get')
+    @patch('requests.get')
     def test_mcp_server_metadata(self, mock_get):
         """Test that MCP server metadata can be retrieved."""
         # Mock the response from the MCP server
@@ -136,29 +137,30 @@ class TestApplicationFunctionality:
         
         # Create an MCP server metadata request
         mcp_request = MCPServerMetadataRequest(
+            transport="sse",
             url="http://localhost:8000"
         )
         
         # Process the MCP server metadata request (we're not actually calling the API here)
         # Just verifying that the request object can be created and serialized
         request_dict = mcp_request.dict()
+        assert request_dict["transport"] == "sse"
         assert request_dict["url"] == "http://localhost:8000"
         
         logger.info("MCP server metadata test passed")
 
-    @patch('src.graph.builder.OpenAI')
-    def test_graph_building(self, mock_openai):
+    @patch('src.llms.llm.get_llm_by_type')
+    def test_graph_building(self, mock_get_llm):
         """Test that the graph can be built correctly."""
-        # Mock the OpenAI response
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "This is a mock response"
-        mock_openai.return_value.chat.completions.create.return_value = mock_response
+        # Mock the LLM
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = "This is a mock response"
+        mock_get_llm.return_value = mock_llm
         
-        # Build the graph (this will use the mock OpenAI client)
-        with patch('src.graph.builder.build_memory', return_value={}):
+        # Build the graph (this will use the mock LLM)
+        with patch('src.graph.builder.MemorySaver', return_value={}):
             try:
-                graph = build_graph_with_memory(config=self.config)
+                graph = build_graph_with_memory()
                 assert graph is not None
                 logger.info("Graph building test passed")
             except Exception as e:
@@ -199,4 +201,3 @@ class TestApplicationFunctionality:
 # Run the tests if this file is executed directly
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])
-

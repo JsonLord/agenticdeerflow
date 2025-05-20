@@ -1,9 +1,7 @@
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
-from typing import List, Optional, Union
-
-from typing import List, Optional, Union, Dict, Any  # Added Dict, Any
+from typing import List, Optional, Union, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -66,15 +64,6 @@ class ChatRequest(BaseModel):
 
 
 class TTSRequest(BaseModel):
-    text: str
-    encoding: Optional[str] = "mp3"
-    speed_ratio: Optional[float] = 1.0
-    volume_ratio: Optional[float] = 1.0
-    pitch_ratio: Optional[float] = 1.0
-    text_type: Optional[str] = "ssml"
-    with_frontend: Optional[bool] = True
-    frontend_type: Optional[str] = "unitTson"
-
     text: str = Field(..., description="The text to convert to speech")
     voice_type: Optional[str] = Field(
         "BV700_V2_streaming", description="The voice type to use"
@@ -91,35 +80,26 @@ class TTSRequest(BaseModel):
 
 
 class GeneratePodcastRequest(BaseModel):
-    content: str
-
     content: str = Field(..., description="The content of the podcast")
 
 
 class GeneratePPTRequest(BaseModel):
-    content: str
-
     content: str = Field(..., description="The content of the ppt")
 
 
 class GenerateProseRequest(BaseModel):
-    prompt: str
-    content: str
-    locale: Optional[str] = "en-US"
-    option: Optional[str] = "polish"  # Default to polish
-    command: Optional[str] = "polish"  # Default to polish
+    prompt: str = Field(..., description="The content of the prose")
+    content: str = Field(..., description="The content to process")
+    locale: Optional[str] = Field("en-US", description="The locale for the prose")
+    option: str = Field(..., description="The option of the prose writer")
+    command: Optional[str] = Field(
+        "", description="The user custom command of the prose writer"
+    )
 
 
 class CoordinatorFeedbackRequest(BaseModel):
     """
     Request model for submitting feedback on a coordinator persona.
     """
-
-    persona_id: str
-    feedback_text: str
-
-    prompt: str = Field(..., description="The content of the prose")
-    option: str = Field(..., description="The option of the prose writer")
-    command: Optional[str] = Field(
-        "", description="The user custom command of the prose writer"
-    )
+    persona_id: str = Field(..., description="The ID of the persona to provide feedback on")
+    feedback_text: str = Field(..., description="The feedback text from the user")
