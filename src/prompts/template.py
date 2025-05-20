@@ -47,19 +47,23 @@ def get_prompt_template(
                 "coordinator_personas", f"{selected_persona}.md"
             )
             try:
-                # print(f"Attempting to load persona template: {persona_specific_path}") # Debug
-                template = env.get_template(persona_specific_path)
-                return template.source
-            except TemplateNotFound:
+                # Get the template path from the loader
+                template_path = env.loader.get_source(env, persona_specific_path)[1]
+                # Read the template file directly
+                with open(template_path, 'r') as f:
+                    return f.read()
+            except (TemplateNotFound, FileNotFoundError):
                 # print(f"Persona template '{persona_specific_path}' not found. Falling back to default.") # Debug
                 pass  # Fall through to load default
 
         # Load default if no persona selected or if persona-specific not found
         try:
-            # print(f"Attempting to load default coordinator template: {default_coordinator_path}") # Debug
-            template = env.get_template(default_coordinator_path)
-            return template.source
-        except TemplateNotFound as e_default:
+            # Get the template path from the loader
+            template_path = env.loader.get_source(env, default_coordinator_path)[1]
+            # Read the template file directly
+            with open(template_path, 'r') as f:
+                return f.read()
+        except (TemplateNotFound, FileNotFoundError) as e_default:
             raise ValueError(
                 f"Error loading default coordinator template '{default_coordinator_path}'. "
                 f"Ensure 'src/prompts/coordinator_personas/default.md' exists. Original error: {e_default}"
@@ -68,9 +72,12 @@ def get_prompt_template(
         # For non-coordinator prompts
         template_path_to_try = f"{prompt_name}.md"
         try:
-            template = env.get_template(template_path_to_try)
-            return template.source
-        except TemplateNotFound as e:
+            # Get the template path from the loader
+            template_path = env.loader.get_source(env, template_path_to_try)[1]
+            # Read the template file directly
+            with open(template_path, 'r') as f:
+                return f.read()
+        except (TemplateNotFound, FileNotFoundError) as e:
             raise ValueError(
                 f"Error loading template '{template_path_to_try}': {e}"
             ) from e
