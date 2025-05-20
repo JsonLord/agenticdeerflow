@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: MIT
 
 import os
-import dataclasses
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-import jinja2
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from typing import Optional, Dict, Any
+from jinja2 import (
+    Environment,
+    FileSystemLoader,
+    select_autoescape,
+    TemplateNotFound
+)
 
 from langgraph.prebuilt.chat_agent_executor import AgentState
-
-# from src.config.configuration import Configuration
 
 # Initialize Jinja2 environment
 env = Environment(
@@ -39,52 +40,64 @@ def get_prompt_template(
     Raises:
         ValueError: If the template or its fallback cannot be loaded.
     """
-    template_path_to_try = ""
+    template_path = ""
     if prompt_name == "coordinator":
-        default_coordinator_path = os.path.join("coordinator_personas", "default.md")
+        default_coordinator_path = os.path.join(
+            "coordinator_personas", "default.md"
+        )
         if selected_persona:
             persona_specific_path = os.path.join(
                 "coordinator_personas", f"{selected_persona}.md"
             )
             try:
                 # Get the template path from the loader
-                template_path = env.loader.get_source(env, persona_specific_path)[1]
+                template_path = env.loader.get_source(
+                    env, persona_specific_path
+                )[1]
                 # Read the template file directly
                 with open(template_path, 'r') as f:
                     return f.read()
             except (TemplateNotFound, FileNotFoundError):
-                # print(f"Persona template '{persona_specific_path}' not found. Falling back to default.") # Debug
-                pass  # Fall through to load default
+                # Fall through to load default
+                pass
 
         # Load default if no persona selected or if persona-specific not found
         try:
             # Get the template path from the loader
-            template_path = env.loader.get_source(env, default_coordinator_path)[1]
+            template_path = env.loader.get_source(
+                env, default_coordinator_path
+            )[1]
             # Read the template file directly
             with open(template_path, 'r') as f:
                 return f.read()
         except (TemplateNotFound, FileNotFoundError) as e_default:
-            raise ValueError(
-                f"Error loading default coordinator template '{default_coordinator_path}'. "
-                f"Ensure 'src/prompts/coordinator_personas/default.md' exists. Original error: {e_default}"
-            ) from e_default
+            msg = (
+                f"Error loading default coordinator template "
+                f"'{default_coordinator_path}'. "
+                f"Ensure 'src/prompts/coordinator_personas/default.md' exists. "
+                f"Original error: {e_default}"
+            )
+            raise ValueError(msg) from e_default
     else:
         # For non-coordinator prompts
-        template_path_to_try = f"{prompt_name}.md"
+        template_path = f"{prompt_name}.md"
         try:
             # Get the template path from the loader
-            template_path = env.loader.get_source(env, template_path_to_try)[1]
+            template_path = env.loader.get_source(
+                env, template_path
+            )[1]
             # Read the template file directly
             with open(template_path, 'r') as f:
                 return f.read()
         except (TemplateNotFound, FileNotFoundError) as e:
-            raise ValueError(
-                f"Error loading template '{template_path_to_try}': {e}"
-            ) from e
+            msg = f"Error loading template '{template_path}': {e}"
+            raise ValueError(msg) from e
 
 
 def apply_prompt_template(
-    prompt_name: str, state: AgentState, configurable: Optional[Dict[str, Any]] = None
+    prompt_name: str,
+    state: AgentState,
+    configurable: Optional[Dict[str, Any]] = None
 ) -> list:
     """
     Apply template variables to a prompt template and return formatted messages.
@@ -99,13 +112,11 @@ def apply_prompt_template(
         List of messages with the system prompt as the first message.
     """
     # Convert state to dict for template rendering
-    # AgentState is a TypedDict, so it can be directly unpacked if all keys are strings.
-    # Or access items using state.get("key") or state["key"]
+    time_format = "%a %b %d %Y %H:%M:%S %z"
     state_vars = {
-        "CURRENT_TIME": datetime.now().strftime("%a %b %d %Y %H:%M:%S %z"),
+        "CURRENT_TIME": datetime.now().strftime(time_format),
     }
-    # Merge state dictionary. AgentState might not be directly unpackable with ** if it has non-string keys
-    # or if we want to be more explicit.
+    # Merge state dictionary
     for key, value in state.items():
         state_vars[key] = value
 
@@ -122,10 +133,13 @@ def apply_prompt_template(
         system_prompt = template_obj.render(**state_vars)
 
         messages_from_state = state.get("messages", [])
-        return [{"role": "system", "content": system_prompt}] + messages_from_state
+        messages = [{"role": "system", "content": system_prompt}]
+        return messages + messages_from_state
     except Exception as e:
         # Include prompt_name and selected_persona in the error for better context
-        persona_info = f" (persona: {selected_persona})" if selected_persona else ""
-        raise ValueError(
-            f"Error applying template '{prompt_name}'{persona_info}: {e}"
-        ) from e
+        p_info = ""
+        if selected_persona:
+            p_info = f" (persona: {selected_persona})"
+        err_prefix = f"Error applying template '{prompt_name}'"
+        err_msg = f"{err_prefix}{p_info}: {e}"
+        raise ValueError(err_msg) from e
