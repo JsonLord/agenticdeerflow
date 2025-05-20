@@ -1,9 +1,10 @@
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
+# flake8: noqa
 
 import os
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from jinja2 import (
     Environment,
     FileSystemLoader,
@@ -94,11 +95,11 @@ def get_prompt_template(
             raise ValueError(msg) from e
 
 
-def apply_prompt_template(
+def apply_template(
     prompt_name: str,
-    state: AgentState,
+    state: Dict[str, Any],
     configurable: Optional[Dict[str, Any]] = None
-) -> list:
+) -> List[Dict[str, str]]:
     """
     Apply template variables to a prompt template and return formatted messages.
 
@@ -143,3 +144,66 @@ def apply_prompt_template(
         err_prefix = f"Error applying template '{prompt_name}'"
         err_msg = f"{err_prefix}{p_info}: {e}"
         raise ValueError(err_msg) from e
+
+
+def format_agent_state(state: AgentState) -> Dict[str, Any]:
+    """
+    Format the agent state for use in templates.
+
+    Args:
+        state: The agent state to format.
+
+    Returns:
+        A dictionary containing the formatted agent state.
+    """
+    formatted_state = {}
+
+    # Format messages
+    if "messages" in state and state["messages"]:
+        formatted_messages = []
+        for message in state["messages"]:
+            formatted_message = {
+                "type": message.type,
+                "content": message.content,
+            }
+            formatted_messages.append(formatted_message)
+        formatted_state["messages"] = formatted_messages
+
+    # Include other state keys
+    for key, value in state.items():
+        if key != "messages":
+            formatted_state[key] = value
+
+    return formatted_state
+
+
+def render_template(
+    template_name: str,
+    state: Optional[AgentState] = None,
+    persona: Optional[str] = None,
+    **kwargs: Any,
+) -> str:
+    """
+    Render a template with the given state and additional arguments.
+
+    Args:
+        template_name: The name of the template to render.
+        state: Optional agent state to include in the template context.
+        persona: Optional persona to use for coordinator templates.
+        **kwargs: Additional arguments to pass to the template.
+
+    Returns:
+        The rendered template as a string.
+    """
+    template_content = get_prompt_template(
+        template_name, persona, **kwargs
+    )
+
+    # Create template context
+    context = kwargs.copy()
+    if state:
+        context["state"] = format_agent_state(state)
+
+    # Render the template using Jinja2
+    template = env.from_string(template_content)
+    return template.render(**context)

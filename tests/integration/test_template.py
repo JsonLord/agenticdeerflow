@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import pytest
-from src.prompts.template import get_prompt_template, apply_prompt_template
+from src.prompts.template import get_prompt_template, apply_template
 
 
 def test_get_prompt_template_success():
@@ -20,7 +20,7 @@ def test_get_prompt_template_not_found():
     assert "Error loading template" in str(exc_info.value)
 
 
-def test_apply_prompt_template():
+def test_apply_template():
     """Test template variable substitution"""
     test_state = {
         "messages": [{"role": "user", "content": "test message"}],
@@ -28,7 +28,7 @@ def test_apply_prompt_template():
         "workspace_context": "test context",
     }
 
-    messages = apply_prompt_template("coder", test_state)
+    messages = apply_template("coder", test_state)
 
     assert isinstance(messages, list)
     assert len(messages) > 1
@@ -38,7 +38,7 @@ def test_apply_prompt_template():
     assert messages[1]["content"] == "test message"
 
 
-def test_apply_prompt_template_empty_messages():
+def test_apply_template_empty_messages():
     """Test template with empty messages list"""
     test_state = {
         "messages": [],
@@ -46,12 +46,12 @@ def test_apply_prompt_template_empty_messages():
         "workspace_context": "test context",
     }
 
-    messages = apply_prompt_template("coder", test_state)
+    messages = apply_template("coder", test_state)
     assert len(messages) == 1  # Only system message
     assert messages[0]["role"] == "system"
 
 
-def test_apply_prompt_template_multiple_messages():
+def test_apply_template_multiple_messages():
     """Test template with multiple messages"""
     test_state = {
         "messages": [
@@ -63,13 +63,13 @@ def test_apply_prompt_template_multiple_messages():
         "workspace_context": "test context",
     }
 
-    messages = apply_prompt_template("coder", test_state)
+    messages = apply_template("coder", test_state)
     assert len(messages) == 4  # system + 3 messages
     assert messages[0]["role"] == "system"
     assert all(m["role"] in ["system", "user", "assistant"] for m in messages)
 
 
-def test_apply_prompt_template_with_special_chars():
+def test_apply_template_with_special_chars():
     """Test template with special characters in variables"""
     test_state = {
         "messages": [{"role": "user", "content": "test\nmessage\"with'special{chars}"}],
@@ -77,7 +77,7 @@ def test_apply_prompt_template_with_special_chars():
         "workspace_context": "<html>context</html>",
     }
 
-    messages = apply_prompt_template("coder", test_state)
+    messages = apply_template("coder", test_state)
     assert messages[1]["content"] == "test\nmessage\"with'special{chars}"
 
 
@@ -98,7 +98,7 @@ def test_current_time_format():
         "workspace_context": "test",
     }
 
-    messages = apply_prompt_template("coder", test_state)
+    messages = apply_template("coder", test_state)
     system_content = messages[0]["content"]
 
     # Time format should be like: Mon Jan 01 2024 12:34:56 +0000
