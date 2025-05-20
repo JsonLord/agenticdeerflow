@@ -4,7 +4,7 @@
 import { useSettingsStore } from "../store";
 
 export function findMCPTool(name: string) {
-  const mcpServers = useSettingsStore.getState().mcp.servers;
+  const mcpServers = useSettingsStore.getState().mcpServers;
   for (const server of mcpServers) {
     for (const tool of server.tools) {
       if (tool.name === name) {
