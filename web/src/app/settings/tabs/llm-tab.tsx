@@ -56,7 +56,7 @@ const OLLAMA_MODELS = [
 
 // Define the form schema
 const llmFormSchema = z.object({
-  provider: z.enum(["", "openai", "azure", "ollama", "openai_compatible"]),
+  provider: z.enum(["default", "openai", "azure", "ollama", "openai_compatible"]),
   model_name: z.string().optional(),
   api_key: z.string().optional(),
   base_url: z.string().optional(),
@@ -76,7 +76,7 @@ export const LLMTab: Tab = ({
   const form = useForm<z.infer<typeof llmFormSchema>>({
     resolver: zodResolver(llmFormSchema),
     defaultValues: {
-      provider: currentConfig.provider || "",
+      provider: currentConfig.provider || "default",
       model_name: currentConfig.model_name || "",
       api_key: currentConfig.api_key || "",
       base_url: (currentConfig as any).base_url || "",
@@ -90,7 +90,7 @@ export const LLMTab: Tab = ({
   // Update form when settings change
   useEffect(() => {
     form.reset({
-      provider: currentConfig.provider || "",
+      provider: currentConfig.provider || "default",
       model_name: currentConfig.model_name || "",
       api_key: currentConfig.api_key || "",
       base_url: (currentConfig as any).base_url || "",
@@ -114,10 +114,31 @@ export const LLMTab: Tab = ({
   const handleUpdateSettings = () => {
     const values = form.getValues();
     
-    if (!values.provider) {
-      toast.error("Provider Required", {
-        description: "Please select an LLM provider before updating settings.",
-      });
+    if (values.provider === "default") {
+      // Use empty string for provider to indicate default system config
+      const newConfig: LLMProviderConfig = {
+        provider: "",
+        model_name: "",
+        api_key: "",
+      };
+      
+      // Update all LLM roles with the same configuration
+      const newLLMConfigurations = {
+        basic: newConfig,
+        reasoning: newConfig,
+        vision: newConfig,
+      };
+
+      onChange({ llmConfigurations: newLLMConfigurations });
+      
+      // Show success message
+      setShowSuccessMessage(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      
       return;
     }
 
@@ -188,7 +209,7 @@ export const LLMTab: Tab = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Default (System Config)</SelectItem>
+                      <SelectItem value="default">Default (System Config)</SelectItem>
                       <SelectItem value="openai">OpenAI</SelectItem>
                       <SelectItem value="azure">Azure OpenAI</SelectItem>
                       <SelectItem value="ollama">Ollama</SelectItem>
@@ -203,7 +224,7 @@ export const LLMTab: Tab = ({
               )}
             />
 
-            {watchProvider && (
+            {watchProvider !== "default" && (
               <>
                 <FormField
                   control={form.control}
@@ -315,6 +336,16 @@ export const LLMTab: Tab = ({
                   Update LLM Settings
                 </Button>
               </>
+            )}
+            
+            {watchProvider === "default" && (
+              <Button 
+                type="button" 
+                onClick={handleUpdateSettings}
+                className="mt-4"
+              >
+                Use System Default
+              </Button>
             )}
           </form>
         </Form>

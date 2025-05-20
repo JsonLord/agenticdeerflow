@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-import { type MCPServer } from "../mcp";
+import { type MCPServerMetadata } from "../mcp";
 
 // LLM Configuration Types
 export type LLMProvider = "openai" | "azure" | "ollama" | "openai_compatible" | "";
@@ -74,16 +74,16 @@ export interface SettingsState {
   maxPlanIterations: number;
   maxStepNum: number;
   maxSearchResults: number;
-  mcpServers: MCPServer[];
+  mcpServers: MCPServerMetadata[];
   enableBackgroundInvestigation: boolean;
   llmConfigurations: LLMRoleConfigurations; // New field
   actions: {
     loadSettings: () => void;
     saveSettings: (settings: Partial<Omit<SettingsState, "actions">>) => void;
     changeSettings: (settings: Partial<Omit<SettingsState, "actions">>) => void;
-    addMCPServer: (server: MCPServer) => void;
+    addMCPServer: (server: MCPServerMetadata) => void;
     removeMCPServer: (id: string) => void;
-    updateMCPServer: (server: MCPServer) => void;
+    updateMCPServer: (server: MCPServerMetadata) => void;
   };
 }
 
