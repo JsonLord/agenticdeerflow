@@ -1,9 +1,11 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import { useSettingsStore, changeSettings, LLMProviderConfig } from '~/core/store/settings-store';
-import { chatStream } from '~/core/api/chat';
 import { nanoid } from 'nanoid';
+
+import { chatStream } from '~/core/api/chat';
+import type { LLMProviderConfig } from '~/core/store/settings-store';
+import { changeSettings } from '~/core/store/settings-store';
 
 /**
  * Test function to verify that LLM configurations are properly passed to the chat API
@@ -31,11 +33,20 @@ export async function testLLMConfigPassing() {
   
   // 2. Create a mock implementation of fetch to intercept the API call
   const originalFetch = global.fetch;
-  let capturedRequestBody: any = null;
+  let capturedRequestBody: Record<string, unknown> = null;
   
   global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     // Only intercept calls to the chat/stream endpoint
-    const url = input.toString();
+    let url = '';
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else {
+      // For Request objects
+      url = input.url;
+    }
+    
     if (url.includes('chat/stream')) {
       // Capture the request body
       capturedRequestBody = JSON.parse(init?.body as string);
@@ -88,7 +99,7 @@ export async function testLLMConfigPassing() {
     const iterator = stream[Symbol.asyncIterator]();
     try {
       await iterator.next();
-    } catch (e) {
+    } catch {
       // Ignore errors from the mock implementation
     }
     
@@ -98,7 +109,7 @@ export async function testLLMConfigPassing() {
       return false;
     }
     
-    const passedLLMConfigs = capturedRequestBody.llm_configurations;
+    const passedLLMConfigs = capturedRequestBody.llm_configurations as Record<string, LLMProviderConfig>;
     console.log('LLM configurations passed to API:', passedLLMConfigs);
     
     if (!passedLLMConfigs) {
@@ -135,10 +146,10 @@ export async function testLLMConfigPassing() {
     }
     
     if (allConfigsCorrect) {
-      console.log('✅ Test passed! LLM configurations were correctly passed to the API.');
+      console.log('\u2705 Test passed! LLM configurations were correctly passed to the API.');
       return true;
     } else {
-      console.error('❌ Test failed! LLM configurations were not correctly passed to the API.');
+      console.error('\u274c Test failed! LLM configurations were not correctly passed to the API.');
       return false;
     }
   } finally {
