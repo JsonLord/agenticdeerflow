@@ -153,13 +153,10 @@ export async function testLLMConfigPassing() {
 export async function testResearchChatFunctionality() {
   console.log('Starting research chat functionality test...');
   
-  // Mock a successful test for now
-  // In the future, this would need to be implemented with a more comprehensive test framework
-  // that can interact with the UI components and verify the research workflow
-  
   // Create a mock implementation of fetch to intercept the API call
   const originalFetch = global.fetch;
-  let apiCallMade = false;
+  let researchApiCallMade = false;
+  let researchOptionsCorrect = false;
   
   global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     // Only intercept calls to the chat/stream endpoint
@@ -167,10 +164,28 @@ export async function testResearchChatFunctionality() {
     if (url.includes('chat/stream')) {
       const requestBody = JSON.parse(init?.body as string);
       
-      // Check if this is a research chat request
-      if (requestBody.enable_background_investigation) {
-        apiCallMade = true;
+      // Check if this is a research chat request with the correct parameters
+      if (requestBody.enable_background_investigation === true) {
+        researchApiCallMade = true;
         console.log('Intercepted research chat API call:', requestBody);
+        
+        // Verify the research-specific parameters
+        const requiredParams = [
+          'thread_id',
+          'max_plan_iterations',
+          'max_step_num',
+          'max_search_results',
+          'enable_background_investigation'
+        ];
+        
+        const missingParams = requiredParams.filter(param => requestBody[param] === undefined);
+        
+        if (missingParams.length === 0) {
+          researchOptionsCorrect = true;
+          console.log('All required research parameters are present');
+        } else {
+          console.error('Missing required research parameters:', missingParams);
+        }
       }
       
       // Return a mock response
@@ -224,13 +239,18 @@ export async function testResearchChatFunctionality() {
       // Ignore errors from the mock implementation
     }
     
-    if (apiCallMade) {
-      console.log('\u2705 Test passed! Research chat API was called successfully.');
-      return true;
-    } else {
+    if (!researchApiCallMade) {
       console.error('\u274c Test failed! Research chat API was not called.');
       return false;
     }
+    
+    if (!researchOptionsCorrect) {
+      console.error('\u274c Test failed! Research chat API was called but with incorrect parameters.');
+      return false;
+    }
+    
+    console.log('\u2705 Test passed! Research chat functionality is working correctly.');
+    return true;
   } finally {
     // Restore the original fetch implementation
     global.fetch = originalFetch;
