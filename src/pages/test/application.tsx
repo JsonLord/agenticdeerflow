@@ -1,302 +1,238 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Typography, List, Divider, Space, Tag, Alert } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { 
+  testLLMConfigurationPassing,
+  testSettingsStore,
+  testMainStore,
+  testMCPSettings,
+  runAllTests
+} from '../../../tests/frontend/application-test';
 
-const { Title, Text, Paragraph } = Typography;
-
-interface TestResult {
-  name: string;
-  passed: boolean;
-  message?: string;
-  duration?: number;
-}
-
+/**
+ * Test UI for running application tests
+ */
 const ApplicationTestPage: React.FC = () => {
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [running, setRunning] = useState(false);
+  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
+    llmConfig: null,
+    settingsStore: null,
+    mainStore: null,
+    mcpSettings: null,
+    allTests: null
+  });
+  
   const [logs, setLogs] = useState<string[]>([]);
-
-  const runAllTests = async () => {
-    setRunning(true);
-    setResults([]);
-    setLogs(['Starting all tests...']);
-
-    try {
-      // Simulate running backend tests
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      addLog('Running backend tests...');
-      
-      // Template loading test
-      addResult({
-        name: 'Template Loading Test',
-        passed: true,
-        duration: 0.23,
-      });
-      
-      // Chat request test
-      addResult({
-        name: 'Chat Request Processing Test',
-        passed: true,
-        duration: 0.45,
-      });
-      
-      // MCP server test
-      addResult({
-        name: 'MCP Server Metadata Test',
-        passed: true,
-        duration: 0.31,
-      });
-      
-      // Graph building test
-      addResult({
-        name: 'Graph Building Test',
-        passed: true,
-        duration: 0.87,
-      });
-      
-      // Configuration loading test
-      addResult({
-        name: 'Configuration Loading Test',
-        passed: true,
-        duration: 0.19,
-      });
-      
-      // Chat message creation test
-      addResult({
-        name: 'Chat Message Creation Test',
-        passed: true,
-        duration: 0.12,
-      });
-      
-      // Simulate running frontend tests
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      addLog('Running frontend tests...');
-      
-      // LLM configuration test
-      addResult({
-        name: 'LLM Configuration Test',
-        passed: true,
-        duration: 0.28,
-      });
-      
-      // Settings store test
-      addResult({
-        name: 'Settings Store Test',
-        passed: true,
-        duration: 0.15,
-      });
-      
-      // Main store test
-      addResult({
-        name: 'Main Store Test',
-        passed: true,
-        duration: 0.22,
-      });
-      
-      // MCP settings test
-      addResult({
-        name: 'MCP Settings Test',
-        passed: true,
-        duration: 0.18,
-      });
-      
-      addLog('All tests completed successfully!');
-    } catch (error) {
-      addLog(`Error running tests: ${error}`);
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  const runSingleTest = async (testName: string) => {
-    setRunning(true);
-    addLog(`Running test: ${testName}...`);
+  const [isRunning, setIsRunning] = useState(false);
+  
+  // Capture console logs
+  useEffect(() => {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    
+    console.log = (...args) => {
+      setLogs(prev => [...prev, args.join(' ')]);
+      originalConsoleLog(...args);
+    };
+    
+    console.error = (...args) => {
+      setLogs(prev => [...prev, `ERROR: ${args.join(' ')}`]);
+      originalConsoleError(...args);
+    };
+    
+    return () => {
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+    };
+  }, []);
+  
+  // Run individual test
+  const runTest = (testName: string, testFn: () => boolean) => {
+    setIsRunning(true);
+    setLogs(prev => [...prev, `Running ${testName} test...`]);
     
     try {
-      // Simulate running a single test
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      addResult({
-        name: testName,
-        passed: true,
-        duration: 0.35,
-      });
-      
-      addLog(`Test ${testName} completed successfully!`);
+      const result = testFn();
+      setTestResults(prev => ({ ...prev, [testName]: result }));
+      setLogs(prev => [...prev, `${testName} test ${result ? 'passed' : 'failed'}`]);
     } catch (error) {
-      addLog(`Error running test ${testName}: ${error}`);
-      addResult({
-        name: testName,
-        passed: false,
-        message: `Error: ${error}`,
-      });
-    } finally {
-      setRunning(false);
+      setTestResults(prev => ({ ...prev, [testName]: false }));
+      setLogs(prev => [...prev, `ERROR in ${testName} test: ${error}`]);
     }
+    
+    setIsRunning(false);
   };
-
-  const addResult = (result: TestResult) => {
-    setResults(prev => [...prev, result]);
-    addLog(`Test ${result.name} ${result.passed ? 'passed' : 'failed'}${result.duration ? ` in ${result.duration}s` : ''}`);
+  
+  // Run all tests
+  const handleRunAllTests = () => {
+    setIsRunning(true);
+    setLogs(prev => [...prev, 'Running all tests...']);
+    
+    try {
+      const result = runAllTests();
+      setTestResults(prev => ({ 
+        ...prev, 
+        allTests: result,
+        llmConfig: testResults.llmConfig,
+        settingsStore: testResults.settingsStore,
+        mainStore: testResults.mainStore,
+        mcpSettings: testResults.mcpSettings
+      }));
+    } catch (error) {
+      setTestResults(prev => ({ ...prev, allTests: false }));
+      setLogs(prev => [...prev, `ERROR in all tests: ${error}`]);
+    }
+    
+    setIsRunning(false);
   };
-
-  const addLog = (message: string) => {
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+  
+  // Clear logs
+  const clearLogs = () => {
+    setLogs([]);
   };
-
+  
+  // Reset test results
+  const resetTests = () => {
+    setTestResults({
+      llmConfig: null,
+      settingsStore: null,
+      mainStore: null,
+      mcpSettings: null,
+      allTests: null
+    });
+    setLogs([]);
+  };
+  
+  // Get test result status
+  const getTestStatus = (result: boolean | null) => {
+    if (result === null) return 'Not run';
+    return result ? 'Passed' : 'Failed';
+  };
+  
+  // Get test result color
+  const getTestStatusColor = (result: boolean | null) => {
+    if (result === null) return 'gray';
+    return result ? 'green' : 'red';
+  };
+  
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <Title level={2}>Application Tests</Title>
-      <Paragraph>
-        Run comprehensive tests for both backend and frontend components of the application.
-      </Paragraph>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Application Test UI</h1>
       
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Card title="Test Controls">
-          <Space>
-            <Button 
-              type="primary" 
-              onClick={runAllTests} 
-              loading={running}
-              disabled={running}
-            >
-              Run All Tests
-            </Button>
-            <Button 
-              onClick={() => runSingleTest('Template Loading Test')} 
-              disabled={running}
-            >
-              Run Template Test
-            </Button>
-            <Button 
-              onClick={() => runSingleTest('Chat Request Processing Test')} 
-              disabled={running}
-            >
-              Run Chat Request Test
-            </Button>
-            <Button 
-              onClick={() => runSingleTest('LLM Configuration Test')} 
-              disabled={running}
-            >
-              Run LLM Config Test
-            </Button>
-          </Space>
-        </Card>
-        
-        <div style={{ display: 'flex', gap: '24px' }}>
-          <Card title="Test Results" style={{ flex: 1 }}>
-            {results.length === 0 ? (
-              <Alert 
-                message="No tests have been run yet" 
-                type="info" 
-                showIcon 
-              />
-            ) : (
-              <List
-                dataSource={results}
-                renderItem={(result) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={result.passed ? 
-                        <CheckCircleOutlined style={{ color: 'green', fontSize: '20px' }} /> : 
-                        <CloseCircleOutlined style={{ color: 'red', fontSize: '20px' }} />
-                      }
-                      title={result.name}
-                      description={result.message}
-                    />
-                    <div>
-                      {result.duration && (
-                        <Tag color="blue">{result.duration}s</Tag>
-                      )}
-                      <Tag color={result.passed ? 'success' : 'error'}>
-                        {result.passed ? 'PASS' : 'FAIL'}
-                      </Tag>
-                    </div>
-                  </List.Item>
-                )}
-              />
-            )}
-          </Card>
-          
-          <Card title="Test Logs" style={{ flex: 1 }}>
-            <div style={{ 
-              height: '400px', 
-              overflowY: 'auto', 
-              backgroundColor: '#f5f5f5', 
-              padding: '12px',
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              borderRadius: '4px'
-            }}>
-              {logs.map((log, index) => (
-                <div key={index} style={{ marginBottom: '4px' }}>{log}</div>
-              ))}
-              {running && (
-                <div style={{ color: 'blue' }}>
-                  <LoadingOutlined style={{ marginRight: '8px' }} />
-                  Running tests...
-                </div>
-              )}
-            </div>
-          </Card>
+      {/* Test Controls */}
+      <div className="mb-6 p-4 border rounded">
+        <h2 className="text-xl font-semibold mb-2">Test Controls</h2>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+            onClick={() => runTest('llmConfig', testLLMConfigurationPassing)}
+            disabled={isRunning}
+          >
+            Test LLM Config
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+            onClick={() => runTest('settingsStore', testSettingsStore)}
+            disabled={isRunning}
+          >
+            Test Settings Store
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+            onClick={() => runTest('mainStore', testMainStore)}
+            disabled={isRunning}
+          >
+            Test Main Store
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+            onClick={() => runTest('mcpSettings', testMCPSettings)}
+            disabled={isRunning}
+          >
+            Test MCP Settings
+          </button>
+          <button
+            className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-gray-400"
+            onClick={handleRunAllTests}
+            disabled={isRunning}
+          >
+            Run All Tests
+          </button>
+          <button
+            className="px-4 py-2 bg-gray-500 text-white rounded"
+            onClick={clearLogs}
+          >
+            Clear Logs
+          </button>
+          <button
+            className="px-4 py-2 bg-red-500 text-white rounded"
+            onClick={resetTests}
+          >
+            Reset Tests
+          </button>
         </div>
-        
-        <Card title="Test Summary">
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div>
-              <Statistic 
-                title="Total Tests" 
-                value={results.length} 
-              />
+      </div>
+      
+      {/* Test Results */}
+      <div className="mb-6 p-4 border rounded">
+        <h2 className="text-xl font-semibold mb-2">Test Results</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {Object.entries(testResults).map(([testName, result]) => (
+            <div 
+              key={testName}
+              className={`p-3 border rounded ${
+                result === null 
+                  ? 'bg-gray-100' 
+                  : result 
+                    ? 'bg-green-100' 
+                    : 'bg-red-100'
+              }`}
+            >
+              <h3 className="font-medium capitalize">{testName}</h3>
+              <p style={{ color: getTestStatusColor(result) }}>
+                {getTestStatus(result)}
+              </p>
             </div>
-            <div>
-              <Statistic 
-                title="Passed" 
-                value={results.filter(r => r.passed).length} 
-                valueStyle={{ color: 'green' }}
-              />
+          ))}
+        </div>
+      </div>
+      
+      {/* Test Logs */}
+      <div className="p-4 border rounded">
+        <h2 className="text-xl font-semibold mb-2">Test Logs</h2>
+        <div className="bg-gray-900 text-gray-100 p-4 rounded h-64 overflow-y-auto font-mono text-sm">
+          {logs.length === 0 ? (
+            <p className="text-gray-500">No logs yet. Run a test to see logs.</p>
+          ) : (
+            logs.map((log, index) => (
+              <div key={index} className={`mb-1 ${log.startsWith('ERROR') ? 'text-red-400' : ''}`}>
+                {log}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      {/* Test Summary */}
+      <div className="mt-6 p-4 border rounded">
+        <h2 className="text-xl font-semibold mb-2">Test Summary</h2>
+        <div className="flex gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold">
+              {Object.values(testResults).filter(Boolean).length}
             </div>
-            <div>
-              <Statistic 
-                title="Failed" 
-                value={results.filter(r => !r.passed).length} 
-                valueStyle={{ color: 'red' }}
-              />
-            </div>
-            <div>
-              <Statistic 
-                title="Success Rate" 
-                value={results.length > 0 ? 
-                  Math.round((results.filter(r => r.passed).length / results.length) * 100) : 
-                  0
-                } 
-                suffix="%" 
-                valueStyle={{ 
-                  color: results.length > 0 ? 
-                    (results.filter(r => r.passed).length === results.length ? 'green' : 'orange') : 
-                    'gray' 
-                }}
-              />
-            </div>
+            <div className="text-green-600">Passed</div>
           </div>
-        </Card>
-      </Space>
-    </div>
-  );
-};
-
-// Add missing Statistic component
-const Statistic: React.FC<{
-  title: string;
-  value: number;
-  suffix?: string;
-  valueStyle?: React.CSSProperties;
-}> = ({ title, value, suffix, valueStyle }) => {
-  return (
-    <div style={{ textAlign: 'center', padding: '0 20px' }}>
-      <div style={{ fontSize: '14px', color: '#8c8c8c' }}>{title}</div>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', ...valueStyle }}>
-        {value}{suffix}
+          <div className="text-center">
+            <div className="text-2xl font-bold">
+              {Object.values(testResults).filter(result => result === false).length}
+            </div>
+            <div className="text-red-600">Failed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold">
+              {Object.values(testResults).filter(result => result === null).length}
+            </div>
+            <div className="text-gray-600">Not Run</div>
+          </div>
+        </div>
       </div>
     </div>
   );

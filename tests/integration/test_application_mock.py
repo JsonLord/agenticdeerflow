@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 # Add the src directory to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-# Import only the components we need for testing
+# Import template module directly
 from src.prompts.template import get_prompt_template, apply_prompt_template
 
 
 class TestApplicationMock:
-    """Test suite for verifying the application functionality with mocks."""
+    """Simplified test suite for verifying basic application functionality."""
 
     def setup_method(self):
         """Set up test environment before each test."""
@@ -64,3 +64,4 @@ class TestApplicationMock:
 # Run the tests if this file is executed directly
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])
+
