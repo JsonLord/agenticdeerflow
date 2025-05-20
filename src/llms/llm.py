@@ -31,7 +31,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
         raise ValueError("LLM configuration dictionary must include a 'provider' key.")
 
     provider = provider.lower()
-    model_name = config_copy.pop("model", None)  # Common key for model/deployment
+    model_name = config_copy.pop("model", config_copy.pop("model_name", None))  # Support both model and model_name
 
     # Common parameters that might be present and can be passed to most models
     # Filter them out if they are None to avoid passing None as default
@@ -45,7 +45,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
         if provider == "openai" or provider == "openai_compatible":
             if not model_name:
                 raise ValueError(
-                    f"Missing 'model' (model_name) in '{provider}' configuration."
+                    f"Missing 'model' or 'model_name' in '{provider}' configuration."
                 )
             # api_key and base_url are optional for ChatOpenAI if set in env vars
             # but if provided in config, they should be used.
@@ -65,7 +65,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
         elif provider == "azure":
             if not model_name:  # For Azure, 'model' in config is the deployment name
                 raise ValueError(
-                    f"Missing 'model' (azure_deployment) in '{provider}' configuration."
+                    f"Missing 'model' or 'model_name' in '{provider}' configuration."
                 )
 
             # Azure specific keys, map them to AzureChatOpenAI parameters
@@ -100,7 +100,7 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
 
         elif provider == "ollama":
             if not model_name:
-                raise ValueError(f"Missing 'model' in '{provider}' configuration.")
+                raise ValueError(f"Missing 'model' or 'model_name' in '{provider}' configuration.")
 
             base_url = config_copy.pop(
                 "base_url", None
@@ -142,10 +142,16 @@ def _create_llm_use_conf(llm_type: LLMType, conf: Dict[str, Any]) -> BaseChatMod
     llm_conf = conf.get(expected_config_key)
 
     if llm_conf is None:
-        raise ValueError(
+        # Instead of raising an error, use a default configuration
+        logger.warning(
             f"Configuration for LLM type '{llm_type}' (expected key: '{expected_config_key}') "
-            f"not found or is null in conf.yaml. Please check your configuration."
+            f"not found in conf.yaml. Using default configuration."
         )
+        # Default to OpenAI with environment variables
+        llm_conf = {
+            "provider": "openai",
+            "model_name": "gpt-4",
+        }
 
     if not isinstance(llm_conf, dict):
         raise ValueError(
@@ -178,17 +184,32 @@ def get_llm_by_type(
         return _llm_cache[llm_type]
 
     logger.info(f"LLM for type '{llm_type}' not in cache. Creating from conf.yaml.")
-    conf = load_yaml_config(
-        str((Path(__file__).parent.parent.parent / "conf.yaml").resolve())
-    )
-    llm = _create_llm_use_conf(llm_type, conf)
-    _llm_cache[llm_type] = llm
-    logger.info(f"Cached LLM for type '{llm_type}'.")
-    return llm
+    try:
+        conf = load_yaml_config(
+            str((Path(__file__).parent.parent.parent / "conf.yaml").resolve())
+        )
+        llm = _create_llm_use_conf(llm_type, conf)
+        _llm_cache[llm_type] = llm
+        logger.info(f"Cached LLM for type '{llm_type}'.")
+        return llm
+    except Exception as e:
+        logger.warning(f"Error loading LLM from conf.yaml: {str(e)}. Using default configuration.")
+        # Default to OpenAI with environment variables
+        default_config = {
+            "provider": "openai",
+            "model_name": "gpt-4",
+        }
+        llm = _create_llm_from_config_dict(default_config)
+        _llm_cache[llm_type] = llm
+        return llm
 
 
 # Initialize LLMs for different purposes - now these will be cached
-basic_llm: BaseChatModel = get_llm_by_type("basic")
+try:
+    basic_llm: BaseChatModel = get_llm_by_type("basic")
+except Exception as e:
+    logger.warning(f"Failed to initialize basic_llm: {str(e)}. Will be initialized on first use.")
+    basic_llm = None
 
 # In the future, we will use reasoning_llm and vl_llm for different purposes
 # reasoning_llm = get_llm_by_type("reasoning")
