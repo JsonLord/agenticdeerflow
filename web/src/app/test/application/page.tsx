@@ -4,6 +4,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { runAllTests, testLLMConfigPassing, testSettingsStore, testMainStore, testMCPSettings } from "~/test/application-test";
@@ -28,7 +29,7 @@ export default function ApplicationTestPage() {
   const captureConsole = () => {
     const logs: string[] = [];
     
-    console.log = (...args) => {
+    console.log = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
@@ -36,7 +37,7 @@ export default function ApplicationTestPage() {
       originalConsoleLog(...args);
     };
     
-    console.error = (...args) => {
+    console.error = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
@@ -305,4 +306,3 @@ export default function ApplicationTestPage() {
     </div>
   );
 }
-
