@@ -1,15 +1,13 @@
 # Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
-from langchain.agents.react.agent import create_react_agent
-from langchain_core.language_models.chat_models import BaseChatModel
+from langchain.agents.react.agent import create_react_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
 from typing import Optional, Dict, Any
 
 from src.prompts import apply_prompt_template
 from src.llms.llm import get_llm_by_type
-from src.config.agents import AGENT_LLM_MAP, LLMType
+from src.config.agents import LLMType
 
 
 def create_agent(
