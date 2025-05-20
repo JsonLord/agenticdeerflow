@@ -1,9 +1,11 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import { useSettingsStore, changeSettings, LLMProviderConfig } from '~/core/store/settings-store';
-import { chatStream } from '~/core/api/chat';
 import { nanoid } from 'nanoid';
+
+import { chatStream } from '~/core/api/chat';
+import type { LLMProviderConfig } from '~/core/store/settings-store';
+import { useSettingsStore, changeSettings } from '~/core/store/settings-store';
 import { useStore } from '~/core/store/store';
 
 /**
@@ -12,7 +14,7 @@ import { useStore } from '~/core/store/store';
 
 // Mock fetch for testing
 const originalFetch = global.fetch;
-let capturedRequestBody: any = null;
+let capturedRequestBody: Record<string, unknown> = null;
 
 // Mock implementation of fetch
 const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -21,8 +23,8 @@ const mockFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     try {
       capturedRequestBody = JSON.parse(init.body as string);
       console.log('Intercepted API call with body:', capturedRequestBody);
-    } catch (e) {
-      console.error('Failed to parse request body:', e);
+    } catch (error) {
+      console.error('Failed to parse request body:', error);
     }
   }
   
@@ -96,7 +98,7 @@ export async function testLLMConfigPassing() {
     const iterator = stream[Symbol.asyncIterator]();
     try {
       await iterator.next();
-    } catch (e) {
+    } catch {
       // Ignore errors from the mock implementation
     }
     
@@ -106,7 +108,7 @@ export async function testLLMConfigPassing() {
       return false;
     }
     
-    const passedLLMConfigs = capturedRequestBody.llm_configurations;
+    const passedLLMConfigs = capturedRequestBody.llm_configurations as Record<string, LLMProviderConfig>;
     console.log('LLM configurations passed to API:', passedLLMConfigs);
     
     if (!passedLLMConfigs) {
@@ -143,10 +145,10 @@ export async function testLLMConfigPassing() {
     }
     
     if (allConfigsCorrect) {
-      console.log('✅ Test passed! LLM configurations were correctly passed to the API.');
+      console.log('\u2705 Test passed! LLM configurations were correctly passed to the API.');
       return true;
     } else {
-      console.error('❌ Test failed! LLM configurations were not correctly passed to the API.');
+      console.error('\u274c Test failed! LLM configurations were not correctly passed to the API.');
       return false;
     }
   } finally {
@@ -215,10 +217,10 @@ export async function testSettingsStore() {
   }
   
   if (allConfigsCorrect) {
-    console.log('✅ Test passed! Settings store was correctly updated.');
+    console.log('\u2705 Test passed! Settings store was correctly updated.');
     return true;
   } else {
-    console.error('❌ Test failed! Settings store was not correctly updated.');
+    console.error('\u274c Test failed! Settings store was not correctly updated.');
     return false;
   }
 }
@@ -277,7 +279,7 @@ export async function testMainStore() {
     return false;
   }
   
-  console.log('✅ Test passed! Main store is working correctly.');
+  console.log('\u2705 Test passed! Main store is working correctly.');
   return true;
 }
 
@@ -348,7 +350,7 @@ export async function testMCPSettings() {
     return false;
   }
   
-  console.log('✅ Test passed! MCP settings are working correctly.');
+  console.log('\u2705 Test passed! MCP settings are working correctly.');
   return true;
 }
 
@@ -366,11 +368,10 @@ export async function runAllTests() {
   const allPassed = Object.values(results).every(result => result === true);
   
   console.log('Test results:', results);
-  console.log(`Overall result: ${allPassed ? '✅ All tests passed!' : '❌ Some tests failed!'}`);
+  console.log(`Overall result: ${allPassed ? '\u2705 All tests passed!' : '\u274c Some tests failed!'}`);
   
   return {
     ...results,
     allPassed,
   };
 }
-
