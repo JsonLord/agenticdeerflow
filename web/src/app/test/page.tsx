@@ -30,7 +30,7 @@ export default function TestPage() {
     
     console.log = (...args: unknown[]) => {
       const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        typeof arg === 'object' && arg !== null ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
       logs.push(`[LOG] ${message}`);
       originalConsoleLog(...args);
@@ -38,7 +38,7 @@ export default function TestPage() {
     
     console.error = (...args: unknown[]) => {
       const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        typeof arg === 'object' && arg !== null ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' '); 
       logs.push(`[ERROR] ${message}`);
       originalConsoleError(...args);
@@ -181,4 +181,3 @@ function TestResultCard({
     </Card>
   );
 }
-
