@@ -10,13 +10,12 @@ import {
   useLastInterruptMessage,
   useStore,
 } from "~/core/store";
-import { parseJSON } from "~/core/utils";
 
 import { ConversationStarter } from "./components/conversation-starter";
 import { InputBox } from "./components/input-box";
 import { MessageListView } from "./components/message-list-view";
-import { ResearchBlock } from "./components/research-block";
 import { PersonaCarouselFrame } from "./components/PersonaCarouselFrame";
+import { ResearchBlock } from "./components/research-block";
 
 interface MainProps {
   onOpenCoordinatorFeedbackModal?: () => void;
@@ -35,11 +34,11 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
   const handleSubmit = (value: string) => {
     // Log the selected persona ID for debugging
     console.log("Submitting with selected persona:", selectedPersonaId);
-    sendMessage(value);
+    void sendMessage(value);
   };
 
   const handleInterrupt = (feedback: string) => {
-    sendMessage(undefined, { interruptFeedback: feedback });
+    void sendMessage(undefined, { interruptFeedback: feedback });
   };
 
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -91,3 +90,4 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
     </main>
   );
 }
+

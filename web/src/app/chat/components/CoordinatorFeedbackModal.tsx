@@ -1,7 +1,11 @@
-
 "use client";
 
+import { Loader2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+
+import { coordinatorPersonas } from "~/app/chat/personas";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,14 +15,10 @@ import {
   DialogFooter,
   DialogClose,
 } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { Textarea } from "~/components/ui/textarea";
 import { Label } from "~/components/ui/label";
-import { useStore } from "~/core/store";
-import { coordinatorPersonas } from "~/app/chat/personas";
+import { Textarea } from "~/components/ui/textarea";
 import { submitCoordinatorFeedback } from "~/core/api/feedback";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { useStore } from "~/core/store";
 
 interface CoordinatorFeedbackModalProps {
   isOpen: boolean;
@@ -118,3 +118,4 @@ export const CoordinatorFeedbackModal: React.FC<CoordinatorFeedbackModalProps> =
     </Dialog>
   );
 };
+

@@ -3,7 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Settings } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -58,15 +58,20 @@ export const GeneralTab: Tab = ({
   });
 
   const currentSettings = form.watch();
-  useEffect(() => {
+  
+  // Use a memoized function to check for changes
+  const hasChanges = useMemo(() => {
     const keys = Object.keys(currentSettings) as Array<keyof typeof currentSettings>;
-    const hasChanges = keys.some(
-      (key) => currentSettings[key] !== (settings as any)[key],
+    return keys.some(
+      (key) => currentSettings[key] !== (settings as Record<string, unknown>)[key],
     );
+  }, [currentSettings, settings]);
+  
+  useEffect(() => {
     if (hasChanges) {
       onChange(currentSettings as Partial<SettingsState>);
     }
-  }, [currentSettings, onChange, settings]);
+  }, [currentSettings, onChange, hasChanges]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -177,3 +182,4 @@ export const GeneralTab: Tab = ({
 };
 GeneralTab.displayName = "";
 GeneralTab.icon = Settings;
+

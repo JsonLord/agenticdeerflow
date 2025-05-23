@@ -1,262 +1,184 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import type { Edge, Node } from "@xyflow/react";
+import { Background, Controls, ReactFlow, useReactFlow } from "@xyflow/react";
+import { Loader2, X } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
 } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import { useStore } from "~/core/store";
-
-import {
-  ReactFlow,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  ReactFlowProvider,
-  Node,
-  Edge,
-  Position,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-
-// TypeScript interfaces mirroring backend Pydantic models
-interface KGNode {
-  id: string;
-  label: string;
-  status: string;
-  type?: string | null;
-  error_message?: string | null;
-}
-
-interface KGEdge {
-  id: string;
-  source: string;
-  target: string;
-  label?: string | null;
-  type?: string | null;
-}
-
-interface KnowledgeGraphResponse {
-  nodes: KGNode[];
-  edges: KGEdge[];
-}
 
 interface KnowledgeGraphModalProps {
   isOpen: boolean;
   onClose: () => void;
-  threadId?: string; // Prop for display purposes, fetching uses store's threadId
+  threadId?: string;
 }
 
-const getNodeStyle = (status: string): React.CSSProperties => {
-  switch (status) {
-    case "active":
-      return { background: "#90EE90", border: "1px solid green", padding: "10px", borderRadius: "3px", width: 150, whiteSpace: 'pre-wrap', textAlign: 'center' };
-    case "completed":
-      return { background: "#ADD8E6", border: "1px solid blue", padding: "10px", borderRadius: "3px", width: 150, whiteSpace: 'pre-wrap', textAlign: 'center' };
-    case "final_completed":
-      return { background: "#D3D3D3", border: "1px solid gray", padding: "10px", borderRadius: "3px", width: 150, whiteSpace: 'pre-wrap', textAlign: 'center' };
-    case "error":
-      return { background: "#FFCCCB", border: "1px solid red", padding: "10px", borderRadius: "3px", width: 150, whiteSpace: 'pre-wrap', textAlign: 'center' };
-    case "pending":
-    default:
-      return { background: "#FFFFFF", border: "1px solid #777", padding: "10px", borderRadius: "3px", width: 150, whiteSpace: 'pre-wrap', textAlign: 'center' };
-  }
-};
+interface GraphData {
+  nodes: Node[];
+  edges: Edge[];
+}
 
-const KnowledgeGraphFlow: React.FC<{ graphData: KnowledgeGraphResponse | null }> = ({ graphData }) => {
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
-  const { fitView } = useReactFlow();
+interface GraphNode {
+  id: string;
+  position?: { x: number; y: number };
+  label?: string;
+  type?: string;
+}
 
-  useEffect(() => {
-    if (graphData) {
-      const transformedNodes: Node[] = graphData.nodes.map((n, i) => {
-        let nodeLabel = n.label;
-        if (n.status === "error" && n.error_message) {
-          // Basic way to include error message in label. Tooltip would be better for long messages.
-          nodeLabel = `${n.label}\nError: ${n.error_message.substring(0, 50)}${n.error_message.length > 50 ? '...' : ''}`;
-        }
-        return {
-          id: n.id,
-          data: { label: nodeLabel },
-          position: { x: (i % 4) * 200, y: Math.floor(i / 4) * 120 }, // Simple grid layout
-          style: getNodeStyle(n.status),
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-        };
-      });
-
-      const transformedEdges: Edge[] = graphData.edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        label: e.label || undefined,
-        animated: e.type === "dynamic_traversed",
-        style: e.type === "static" ? { stroke: "#ccc", strokeDasharray: "5 5" } : { stroke: "#333" },
-      }));
-
-      setRfNodes(transformedNodes);
-      setRfEdges(transformedEdges);
-    } else {
-      setRfNodes([]);
-      setRfEdges([]);
-    }
-  }, [graphData, setRfNodes, setRfEdges]);
-
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      // Timeout to allow nodes to render before fitting view
-      setTimeout(() => fitView({ padding: 0.1, duration: 300 }), 100);
-    }
-  }, [rfNodes, rfEdges, fitView]); // Rerun fitView when nodes or edges change
-
-  if (!graphData) {
-    return (
-      <p className="text-center text-muted-foreground">
-        No graph data to display or data is being loaded.
-      </p>
-    );
-  }
-  
-  if (graphData.nodes.length === 0 && graphData.edges.length === 0) {
-     return (
-      <p className="text-center text-muted-foreground">
-        No nodes or edges to display for this graph state.
-      </p>
-    );
-  }
-
-
-  return (
-    <ReactFlow
-      nodes={rfNodes}
-      edges={rfEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      fitView
-      nodesDraggable={true}
-      nodesConnectable={false}
-      // defaultViewport={{ x: 0, y: 0, zoom: 1 }} // Optional: set an initial viewport
-    >
-      <Controls />
-      <Background />
-    </ReactFlow>
-  );
-};
-
+interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
 
 export const KnowledgeGraphModal: React.FC<KnowledgeGraphModalProps> = ({
   isOpen,
   onClose,
-  threadId: displayThreadId, 
+  threadId,
 }) => {
-  const [graphData, setGraphData] = useState<KnowledgeGraphResponse | null>(null);
+  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
+  const [error, setError] = useState<string | null>(null);
+  const reactFlowInstance = useReactFlow();
   const threadIdFromStore = useStore((state) => state.threadId);
 
   const fetchGraphData = useCallback(async () => {
-    if (!threadIdFromStore) {
-      setFetchError("Thread ID is not available from the store.");
-      setGraphData(null);
-      return;
-    }
     setIsLoading(true);
-    setFetchError(null);
+    setError(null);
+
     try {
-      const response = await fetch(`/api/graph_state/${threadIdFromStore}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Failed to fetch graph data" }));
-        const errorMsg = errorData.detail || `HTTP error! status: ${response.status}`;
-        setFetchError(errorMsg);
-        setGraphData(null);
-        return;
+      // Use the thread ID from props or fall back to the one from store
+      const effectiveThreadId = threadId ?? threadIdFromStore;
+      
+      if (!effectiveThreadId) {
+        throw new Error("No thread ID available");
       }
-      const data: KnowledgeGraphResponse = await response.json();
-      setGraphData(data);
+
+      const response = await fetch(`/api/knowledge_graph/${effectiveThreadId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Transform the data if needed to match the ReactFlow format
+      const transformedData: GraphData = {
+        nodes: data.nodes.map((node: GraphNode) => ({
+          id: node.id,
+          position: node.position ?? { x: Math.random() * 500, y: Math.random() * 500 },
+          data: { label: node.label ?? node.id },
+          type: "default",
+          style: {
+            background: node.type === "concept" ? "#e6f7ff" : "#f6ffed",
+            border: "1px solid #1890ff",
+            borderRadius: "8px",
+            padding: "10px",
+            width: "auto",
+            minWidth: "150px",
+          },
+        })),
+        edges: data.edges.map((edge: GraphEdge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label,
+          type: "default",
+          animated: true,
+          style: { stroke: "#1890ff" },
+        })),
+      };
+      
+      setGraphData(transformedData);
+      
+      // Center the graph after it's loaded
+      setTimeout(() => {
+        if (reactFlowInstance && transformedData.nodes.length > 0) {
+          void reactFlowInstance.fitView({ padding: 0.2 });
+        }
+      }, 100);
     } catch (error) {
-      console.error("Failed to fetch graph data:", error);
-      setFetchError(error instanceof Error ? error.message : "An unknown error occurred.");
-      setGraphData(null);
+      console.error("Error fetching knowledge graph:", error);
+      setError(error instanceof Error ? error.message : "Failed to load knowledge graph");
     } finally {
       setIsLoading(false);
     }
-  }, [threadIdFromStore]);
+  }, [threadId, threadIdFromStore, reactFlowInstance]);
 
   useEffect(() => {
-    if (isOpen && threadIdFromStore) {
-      fetchGraphData();
+    if (isOpen) {
+      void fetchGraphData();
     }
-    // Reset data when modal is closed to ensure fresh data on reopen and clear previous state
-    if (!isOpen) {
-        setGraphData(null);
-        setFetchError(null);
-        setIsLoading(false); // Ensure loading is reset
-    }
-  }, [isOpen, threadIdFromStore, fetchGraphData]);
+  }, [isOpen, fetchGraphData]);
 
-  const handleRefresh = () => {
-    fetchGraphData();
-  };
-
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[80vw] md:max-w-[70vw] lg:max-w-[60vw] h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Workflow Graph</DialogTitle>
+      <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] h-[80vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <DialogTitle>Knowledge Graph</DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
-        <div className="flex-grow overflow-hidden p-0 border rounded-md my-4 flex items-center justify-center relative"> {/* Ensure parent has dimensions for ReactFlow */}
+
+        <div className="flex-grow relative">
           {isLoading ? (
-            <div className="flex flex-col items-center text-muted-foreground">
-              <Loader2 className="h-12 w-12 animate-spin mb-4" />
-              <p>Loading graph data...</p>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center">
+                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                <p className="text-sm text-muted-foreground">Loading knowledge graph...</p>
+              </div>
             </div>
-          ) : fetchError ? (
-            <div className="flex flex-col items-center text-destructive p-4">
-              <AlertTriangle className="h-12 w-12 mb-4" />
-              <p className="font-semibold">Error loading graph:</p>
-              <p className="text-sm text-center">{fetchError}</p>
+          ) : error ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center p-4">
+                <p className="text-destructive font-medium mb-2">Error loading graph</p>
+                <p className="text-sm text-muted-foreground">{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => void fetchGraphData()} 
+                  className="mt-4"
+                >
+                  Retry
+                </Button>
+              </div>
             </div>
-          ) : graphData ? (
-            <ReactFlowProvider> {/* ReactFlowProvider is needed for useReactFlow hook */}
-              <KnowledgeGraphFlow graphData={graphData} />
-            </ReactFlowProvider>
+          ) : graphData.nodes.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-muted-foreground">No knowledge graph data available for this thread.</p>
+            </div>
           ) : (
-             <p className="text-center text-muted-foreground">
-              Click Refresh to load graph data.
-            </p>
+            <ReactFlow
+              nodes={graphData.nodes}
+              edges={graphData.edges}
+              fitView
+              attributionPosition="bottom-right"
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
           )}
         </div>
-        <DialogFooter className="sm:justify-between">
-          <div className="text-xs text-muted-foreground">
-            {/* Displaying thread IDs for debugging/confirmation */}
-            {displayThreadId && (<span>Displaying for: {displayThreadId}</span>)}
-            {threadIdFromStore && displayThreadId !== threadIdFromStore && (<span className="ml-2">(Store: {threadIdFromStore})</span>)}
-          </div>
-          <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Close
-            </Button>
-          </DialogClose>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
+

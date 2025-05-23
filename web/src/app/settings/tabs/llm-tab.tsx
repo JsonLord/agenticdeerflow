@@ -3,10 +3,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BotMessageSquare, CheckCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Button } from "~/components/ui/button";
 import {
   Form,
   FormControl,
@@ -24,9 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Button } from "~/components/ui/button";
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "~/components/ui/alert";
 import type { SettingsState, LLMProviderConfig } from "~/core/store";
 
 import type { Tab } from "./types";
@@ -70,16 +69,19 @@ export const LLMTab: Tab = ({
   onChange: (changes: Partial<SettingsState>) => void;
 }) => {
   // Get the current LLM configuration
-  const currentConfig = settings.llmConfigurations?.basic || { provider: "" };
+  const currentConfig = useMemo(() => 
+    settings.llmConfigurations?.basic ?? { provider: "" },
+  [settings.llmConfigurations?.basic]);
+  
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const form = useForm<z.infer<typeof llmFormSchema>>({
     resolver: zodResolver(llmFormSchema),
     defaultValues: {
-      provider: currentConfig.provider || "default",
-      model_name: currentConfig.model_name || "",
-      api_key: currentConfig.api_key || "",
-      base_url: (currentConfig as any).base_url || "",
+      provider: currentConfig.provider ?? "default",
+      model_name: currentConfig.model_name ?? "",
+      api_key: currentConfig.api_key ?? "",
+      base_url: (currentConfig as Record<string, unknown>).base_url as string ?? "",
     },
     mode: "all",
     reValidateMode: "onBlur",
@@ -90,10 +92,10 @@ export const LLMTab: Tab = ({
   // Update form when settings change
   useEffect(() => {
     form.reset({
-      provider: currentConfig.provider || "default",
-      model_name: currentConfig.model_name || "",
-      api_key: currentConfig.api_key || "",
-      base_url: (currentConfig as any).base_url || "",
+      provider: currentConfig.provider ?? "default",
+      model_name: currentConfig.model_name ?? "",
+      api_key: currentConfig.api_key ?? "",
+      base_url: (currentConfig as Record<string, unknown>).base_url as string ?? "",
     });
   }, [currentConfig, form]);
 
@@ -144,14 +146,14 @@ export const LLMTab: Tab = ({
 
     // Create a new LLM configuration based on form values
     const newConfig: LLMProviderConfig = {
-      provider: values.provider as any,
+      provider: values.provider as string,
       model_name: values.model_name,
       api_key: values.api_key,
     };
 
     // Add base_url if applicable
     if (values.base_url && ["openai", "azure", "ollama", "openai_compatible"].includes(values.provider)) {
-      (newConfig as any).base_url = values.base_url;
+      (newConfig as Record<string, unknown>).base_url = values.base_url;
     }
 
     // Update all LLM roles with the same configuration
@@ -355,3 +357,4 @@ export const LLMTab: Tab = ({
 };
 
 LLMTab.icon = BotMessageSquare;
+

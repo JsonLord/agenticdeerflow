@@ -1,8 +1,9 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
+import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, X, ThumbsUp } from "lucide-react";
+import { ArrowUp, ThumbsUp, X } from "lucide-react";
 import {
   type KeyboardEvent,
   useCallback,
@@ -17,7 +18,6 @@ import { Button } from "~/components/ui/button";
 import type { Option } from "~/core/messages";
 import {
   setEnableBackgroundInvestigation,
-  useSettingsStore,
   useStore,
 } from "~/core/store";
 import { cn } from "~/lib/utils";
@@ -31,9 +31,12 @@ export function InputBox({
   onCancel,
   onRemoveFeedback,
   onOpenCoordinatorFeedbackModal,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   waitingForFeedback,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   feedbackContext,
   onSubmit,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onInterrupt,
 }: {
   className?: string;
@@ -56,7 +59,7 @@ export function InputBox({
   // Get the selected persona ID from the store
   const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
   
-  const backgroundInvestigation = useSettingsStore(
+  const backgroundInvestigation = useStore(
     (state) => state.enableBackgroundInvestigation,
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -207,7 +210,6 @@ export function InputBox({
             <Button
               variant="ghost"
               size="icon"
-
               onClick={() => {
                 if (onOpenCoordinatorFeedbackModal) {
                   onOpenCoordinatorFeedbackModal();
@@ -216,7 +218,6 @@ export function InputBox({
                   console.warn("onOpenCoordinatorFeedbackModal not provided to InputBox");
                 }
               }}
-    
               className="text-muted-foreground hover:text-accent-foreground"
               aria-label="Feedback on Coordinator"
             >

@@ -1,7 +1,9 @@
-
 "use client";
 
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
+
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +13,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { RefreshCw, AlertTriangle, Loader2 } from "lucide-react";
 import { useStore } from "~/core/store";
 
 // TypeScript interface mirroring backend Pydantic model ExpertFeedbackResponse
@@ -53,7 +53,7 @@ export const ExpertFeedbackModal: React.FC<ExpertFeedbackModalProps> = ({
       const response = await fetch(`/api/expert_feedback/${threadIdFromStore}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: "Failed to fetch expert feedback" }));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.detail ?? `HTTP error! status: ${response.status}`);
       }
       const data: ExpertFeedbackData = await response.json();
       setFeedbackData(data);
@@ -68,7 +68,7 @@ export const ExpertFeedbackModal: React.FC<ExpertFeedbackModalProps> = ({
 
   useEffect(() => {
     if (isOpen && threadIdFromStore) {
-      fetchExpertFeedback();
+      void fetchExpertFeedback();
     }
     // Reset data when modal is closed to ensure fresh data on reopen
     if (!isOpen) {
@@ -79,7 +79,7 @@ export const ExpertFeedbackModal: React.FC<ExpertFeedbackModalProps> = ({
   }, [isOpen, threadIdFromStore, fetchExpertFeedback]);
 
   const handleRefresh = () => {
-    fetchExpertFeedback();
+    void fetchExpertFeedback();
   };
 
   if (!isOpen) {
@@ -183,3 +183,4 @@ export const ExpertFeedbackModal: React.FC<ExpertFeedbackModalProps> = ({
     </Dialog>
   );
 };
+
