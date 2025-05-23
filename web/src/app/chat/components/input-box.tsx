@@ -80,28 +80,37 @@ export function InputBox({
   const handleSendMessage = useCallback(() => {
     if (responding) {
       onCancel?.();
-    } else {
-      if (message.trim() === "") {
-        return;
-      }
-      
-      // Use onSubmit if available (from Main component)
-      if (onSubmit) {
-        console.log("Sending message with selected persona:", selectedPersonaId);
-        onSubmit(message);
-        setMessage("");
-        return;
-      }
-      
-      // Fallback to onSend
-      if (onSend) {
-        onSend(message, {
-          interruptFeedback: feedback?.option.value,
-        });
-        setMessage("");
-        onRemoveFeedback?.();
-      }
+      return;
     }
+    
+    if (message.trim() === "") {
+      console.warn("InputBox: Attempted to send empty message");
+      return;
+    }
+    
+    console.log("InputBox: Sending message:", message);
+    console.log("InputBox: Using selected persona:", selectedPersonaId);
+    
+    // Use onSubmit if available (from Main component)
+    if (onSubmit) {
+      console.log("InputBox: Using onSubmit handler");
+      onSubmit(message);
+      setMessage("");
+      return;
+    }
+    
+    // Fallback to onSend
+    if (onSend) {
+      console.log("InputBox: Using onSend handler");
+      onSend(message, {
+        interruptFeedback: feedback?.option.value,
+      });
+      setMessage("");
+      onRemoveFeedback?.();
+      return;
+    }
+    
+    console.warn("InputBox: No handler provided for sending messages");
   }, [responding, onCancel, message, onSend, onSubmit, feedback, onRemoveFeedback, selectedPersonaId]);
 
   const handleKeyDown = useCallback(

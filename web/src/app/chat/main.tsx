@@ -32,10 +32,17 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
   const waitingForFeedback = lastInterruptMessage != null;
   const feedbackContext = lastInterruptMessage?.interruptFeedback;
 
+  // This function will be used for both the InputBox and ConversationStarter
   const handleSubmit = (value: string) => {
     // Log the selected persona ID for debugging
     console.log("Submitting with selected persona:", selectedPersonaId);
-    void sendMessage(value);
+    console.log("Message content:", value);
+    
+    if (value && value.trim() !== "") {
+      void sendMessage(value);
+    } else {
+      console.warn("Attempted to submit empty message");
+    }
   };
 
   const handleInterrupt = (feedback: string) => {
