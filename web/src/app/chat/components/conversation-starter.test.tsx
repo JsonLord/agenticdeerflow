@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ConversationStarter } from './conversation-starter';
 
@@ -8,6 +9,13 @@ vi.mock('framer-motion', () => {
     motion: {
       li: ({ children, ...props }: any) => <li {...props}>{children}</li>,
     },
+  };
+});
+
+// Mock the utils
+vi.mock('~/lib/utils', () => {
+  return {
+    cn: (...classes: any[]) => classes.filter(Boolean).join(' '),
   };
 });
 
