@@ -1,4 +1,3 @@
-
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -106,6 +105,7 @@ export async function sendMessage(
   }
 
   const settings = getChatStreamSettings();
+  // Note: chatStream will automatically include the selectedCoordinatorPersona from the store
   const stream = chatStream(
     content ?? "[REPLAY]",
     {

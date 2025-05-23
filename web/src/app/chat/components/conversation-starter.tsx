@@ -14,10 +14,25 @@ const questions = [
 export function ConversationStarter({
   className,
   onSend,
+  onSubmit,
 }: {
   className?: string;
   onSend?: (message: string) => void;
+  onSubmit?: (message: string) => void; // Add onSubmit prop
 }) {
+  // Use onSubmit if provided, otherwise fall back to onSend
+  const handleQuestionClick = (question: string) => {
+    if (onSubmit) {
+      console.log("ConversationStarter: Using onSubmit with question:", question);
+      onSubmit(question);
+    } else if (onSend) {
+      console.log("ConversationStarter: Using onSend with question:", question);
+      onSend(question);
+    } else {
+      console.warn("ConversationStarter: No handler provided for question click");
+    }
+  };
+
   return (
     <div className={cn("flex flex-col items-center", className)}>
       <ul className="flex flex-wrap">
@@ -38,7 +53,7 @@ export function ConversationStarter({
             <div
               className="bg-card text-muted-foreground cursor-pointer rounded-2xl border px-4 py-4 opacity-75 transition-all duration-300 hover:opacity-100 hover:shadow-md"
               onClick={() => {
-                onSend?.(question);
+                handleQuestionClick(question);
               }}
             >
               {question}

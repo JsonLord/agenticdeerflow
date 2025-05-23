@@ -1,4 +1,3 @@
-
 import { env } from "~/env";
 
 import type { MCPServerMetadata } from "../mcp";
@@ -63,6 +62,9 @@ export async function* chatStream(
   // Retrieve selected coordinator persona from the main store
   const mainStoreState = useStore.getState();
   const selectedPersona = mainStoreState.selectedCoordinatorPersona;
+  
+  // Log the selected persona for debugging
+  console.log("API using selected persona:", selectedPersona);
 
   const requestBody = {
     messages: [{ role: "user", content: userMessage }],
@@ -70,6 +72,9 @@ export async function* chatStream(
     llm_configurations: Object.keys(activeLlmConfigsForApi).length > 0 ? activeLlmConfigsForApi : undefined,
     selected_persona: selectedPersona,
   };
+  
+  // Log the full request payload for debugging
+  console.log("API request payload:", requestBody);
 
   const stream = fetchStream(resolveServiceURL("chat/stream"), {
     body: JSON.stringify(requestBody),
