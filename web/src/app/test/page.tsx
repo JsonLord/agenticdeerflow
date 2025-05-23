@@ -1,24 +1,26 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
-import { runAllTests, testLLMConfigPassing, testResearchChatFunctionality } from "~/test/llm-config-test";
+import { useState } from 'react';
+
+import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card';
+import { runAllTests, testLLMConfigPassing, testSettingsStore, testMainStore, testMCPSettings } from '~/test/application-test';
 
 export default function TestPage() {
-  const [testResults, setTestResults] = useState<{
+  const [results, setResults] = useState<{
     llmConfigTest?: boolean;
-    researchChatTest?: boolean;
+    settingsStoreTest?: boolean;
+    mainStoreTest?: boolean;
+    mcpSettingsTest?: boolean;
     allPassed?: boolean;
-    logs: string[];
-  }>({
-    logs: [],
-  });
-  const [isRunning, setIsRunning] = useState(false);
-
+  }>({});
+  
+  const [logs, setLogs] = useState<string[]>([]);
+  const [running, setRunning] = useState(false);
+  
   // Override console.log to capture logs
   const originalConsoleLog = console.log;
   const originalConsoleError = console.error;
@@ -26,7 +28,7 @@ export default function TestPage() {
   const captureConsole = () => {
     const logs: string[] = [];
     
-    console.log = (...args) => {
+    console.log = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
@@ -34,177 +36,149 @@ export default function TestPage() {
       originalConsoleLog(...args);
     };
     
-    console.error = (...args) => {
+    console.error = (...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
+      ).join(' '); 
       logs.push(`[ERROR] ${message}`);
       originalConsoleError(...args);
     };
     
     return logs;
   };
-
+  
   const restoreConsole = () => {
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
   };
-
+  
   const runTests = async () => {
-    setIsRunning(true);
-    const logs = captureConsole();
+    setRunning(true);
+    setResults({});
+    const capturedLogs = captureConsole();
     
     try {
-      const results = await runAllTests();
-      setTestResults({
-        ...results,
-        logs,
-      });
-    } catch (error) {
-      console.error("Error running tests:", error);
-      setTestResults({
-        llmConfigTest: false,
-        researchChatTest: false,
-        allPassed: false,
-        logs: [...logs, `[ERROR] Uncaught exception: ${error}`],
-      });
-    } finally {
-      restoreConsole();
-      setIsRunning(false);
-    }
-  };
-
-  const runLLMConfigTest = async () => {
-    setIsRunning(true);
-    const logs = captureConsole();
-    
-    try {
-      const result = await testLLMConfigPassing();
-      setTestResults({
-        llmConfigTest: result,
-        logs,
-      });
-    } catch (error) {
-      console.error("Error running LLM config test:", error);
-      setTestResults({
-        llmConfigTest: false,
-        logs: [...logs, `[ERROR] Uncaught exception: ${error}`],
-      });
-    } finally {
-      restoreConsole();
-      setIsRunning(false);
-    }
-  };
-
-  const runResearchChatTest = async () => {
-    setIsRunning(true);
-    const logs = captureConsole();
-    
-    try {
-      const result = await testResearchChatFunctionality();
-      setTestResults({
-        researchChatTest: result,
-        logs,
-      });
-    } catch (error) {
-      console.error("Error running research chat test:", error);
-      setTestResults({
-        researchChatTest: false,
-        logs: [...logs, `[ERROR] Uncaught exception: ${error}`],
-      });
-    } finally {
-      restoreConsole();
-      setIsRunning(false);
-    }
-  };
-
-  return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-6">DeerFlow Test Suite</h1>
+      // Run individual tests
+      const llmConfigTest = await testLLMConfigPassing();
+      setResults(prev => ({ ...prev, llmConfigTest }));
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>LLM Configuration Test</CardTitle>
-            <CardDescription>
-              Tests that LLM configurations are properly passed to the chat API
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {testResults.llmConfigTest !== undefined && (
-              <div className={`p-4 rounded-md ${testResults.llmConfigTest ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {testResults.llmConfigTest ? '✅ Passed' : '❌ Failed'}
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button onClick={runLLMConfigTest} disabled={isRunning}>
-              {isRunning ? 'Running...' : 'Run Test'}
-            </Button>
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Research Chat Test</CardTitle>
-            <CardDescription>
-              Tests the research chat functionality
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {testResults.researchChatTest !== undefined && (
-              <div className={`p-4 rounded-md ${testResults.researchChatTest ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {testResults.researchChatTest ? '✅ Passed' : '❌ Failed'}
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button onClick={runResearchChatTest} disabled={isRunning}>
-              {isRunning ? 'Running...' : 'Run Test'}
-            </Button>
-          </CardFooter>
-        </Card>
+      const settingsStoreTest = await testSettingsStore();
+      setResults(prev => ({ ...prev, settingsStoreTest }));
+      
+      const mainStoreTest = await testMainStore();
+      setResults(prev => ({ ...prev, mainStoreTest }));
+      
+      const mcpSettingsTest = await testMCPSettings();
+      setResults(prev => ({ ...prev, mcpSettingsTest }));
+      
+      // Run all tests together
+      const allPassed = await runAllTests();
+      setResults(prev => ({ ...prev, allPassed }));
+    } catch (error) {
+      console.error('Test execution error:', error);
+    } finally {
+      setLogs(capturedLogs);
+      restoreConsole();
+      setRunning(false);
+    }
+  };
+  
+  return (
+    <div className="container py-8">
+      <h1 className="text-3xl font-bold mb-6">Application Tests</h1>
+      
+      <div className="mb-6">
+        <Button onClick={runTests} disabled={running}>
+          {running ? 'Running Tests...' : 'Run All Tests'}
+        </Button>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Run All Tests</CardTitle>
-          <CardDescription>
-            Run all tests at once
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {testResults.allPassed !== undefined && (
-            <div className={`p-4 rounded-md ${testResults.allPassed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {testResults.allPassed ? '✅ All tests passed' : '❌ Some tests failed'}
-            </div>
-          )}
-        </CardContent>
-        <CardFooter>
-          <Button onClick={runTests} disabled={isRunning} className="mr-4">
-            {isRunning ? 'Running...' : 'Run All Tests'}
-          </Button>
-        </CardFooter>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <TestResultCard 
+          title="LLM Config Test" 
+          description="Tests if LLM configuration is correctly passed to the API"
+          result={results.llmConfigTest}
+        />
+        
+        <TestResultCard 
+          title="Settings Store Test" 
+          description="Tests if settings store correctly manages user preferences"
+          result={results.settingsStoreTest}
+        />
+        
+        <TestResultCard 
+          title="Main Store Test" 
+          description="Tests if main application store works correctly"
+          result={results.mainStoreTest}
+        />
+        
+        <TestResultCard 
+          title="MCP Settings Test" 
+          description="Tests if MCP settings are correctly managed"
+          result={results.mcpSettingsTest}
+        />
+        
+        <TestResultCard 
+          title="All Tests" 
+          description="Runs all tests together to check for integration issues"
+          result={results.allPassed}
+          className="md:col-span-2 lg:col-span-3"
+        />
+      </div>
       
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Test Logs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-gray-100 p-4 rounded-md h-96 overflow-auto font-mono text-sm">
-            {testResults.logs.map((log, index) => (
-              <div key={index} className={log.startsWith('[ERROR]') ? 'text-red-600' : ''}>
+      <div className="bg-muted rounded-lg p-4">
+        <h2 className="text-xl font-semibold mb-2">Test Logs</h2>
+        <div className="bg-card border rounded-md p-4 h-[400px] overflow-y-auto font-mono text-sm">
+          {logs.length > 0 ? (
+            logs.map((log, index) => (
+              <div 
+                key={index} 
+                className={`mb-1 ${log.startsWith('[ERROR]') ? 'text-destructive' : ''}`}
+              >
                 {log}
               </div>
-            ))}
-            {testResults.logs.length === 0 && (
-              <div className="text-gray-500">No logs yet. Run a test to see logs.</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            ))
+          ) : (
+            <div className="text-muted-foreground">Run tests to see logs...</div>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function TestResultCard({ 
+  title, 
+  description, 
+  result, 
+  className = '' 
+}: { 
+  title: string; 
+  description: string; 
+  result?: boolean; 
+  className?: string;
+}) {
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {result === undefined ? (
+          <div className="text-muted-foreground">Not run yet</div>
+        ) : result ? (
+          <div className="text-green-500 font-semibold">PASSED</div>
+        ) : (
+          <div className="text-destructive font-semibold">FAILED</div>
+        )}
+      </CardContent>
+      <CardFooter>
+        <div className="text-xs text-muted-foreground">
+          Check logs for details
+        </div>
+      </CardFooter>
+    </Card>
   );
 }
 
