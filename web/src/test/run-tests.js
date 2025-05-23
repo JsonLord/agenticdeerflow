@@ -1,11 +1,11 @@
-import { runApplicationTests } from './application-test.js';
+import { runAllTests } from './application-test.js';
 
-async function runAllTests() {
+async function runTests() {
   console.log('Starting tests...');
   
   try {
     // Run application tests
-    const appTestsPassed = await runApplicationTests();
+    const appTestsPassed = await runAllTests();
     
     if (appTestsPassed) {
       console.log('All tests passed!');
@@ -20,5 +20,5 @@ async function runAllTests() {
   }
 }
 
-runAllTests();
+runTests();
 
