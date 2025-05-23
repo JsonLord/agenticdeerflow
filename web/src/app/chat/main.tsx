@@ -27,11 +27,14 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
   const messageIds = useStore(useShallow((state) => state.messageIds));
   const openResearchId = useStore((state) => state.openResearchId);
   const lastInterruptMessage = useLastInterruptMessage();
+  const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
 
   const waitingForFeedback = lastInterruptMessage != null;
   const feedbackContext = lastInterruptMessage?.interruptFeedback;
 
   const handleSubmit = (value: string) => {
+    // Log the selected persona ID for debugging
+    console.log("Submitting with selected persona:", selectedPersonaId);
     sendMessage(value);
   };
 

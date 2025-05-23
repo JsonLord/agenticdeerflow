@@ -1,4 +1,3 @@
-
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
@@ -19,6 +18,7 @@ import type { Option } from "~/core/messages";
 import {
   setEnableBackgroundInvestigation,
   useSettingsStore,
+  useStore,
 } from "~/core/store";
 import { cn } from "~/lib/utils";
 
@@ -31,12 +31,20 @@ export function InputBox({
   onCancel,
   onRemoveFeedback,
   onOpenCoordinatorFeedbackModal,
+  waitingForFeedback,
+  feedbackContext,
+  onSubmit,
+  onInterrupt,
 }: {
   className?: string;
   size?: "large" | "normal";
   responding?: boolean;
   feedback?: { option: Option } | null;
+  waitingForFeedback?: boolean;
+  feedbackContext?: string;
   onSend?: (message: string, options?: { interruptFeedback?: string }) => void;
+  onSubmit?: (message: string) => void;
+  onInterrupt?: (feedback: string) => void;
   onCancel?: () => void;
   onRemoveFeedback?: () => void;
   onOpenCoordinatorFeedbackModal?: () => void;
@@ -44,6 +52,10 @@ export function InputBox({
   const [message, setMessage] = useState("");
   const [imeStatus, setImeStatus] = useState<"active" | "inactive">("inactive");
   const [indent, setIndent] = useState(0);
+  
+  // Get the selected persona ID from the store
+  const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
+  
   const backgroundInvestigation = useSettingsStore(
     (state) => state.enableBackgroundInvestigation,
   );
@@ -72,6 +84,16 @@ export function InputBox({
       if (message.trim() === "") {
         return;
       }
+      
+      // Use onSubmit if available (from Main component)
+      if (onSubmit) {
+        console.log("Sending message with selected persona:", selectedPersonaId);
+        onSubmit(message);
+        setMessage("");
+        return;
+      }
+      
+      // Fallback to onSend
       if (onSend) {
         onSend(message, {
           interruptFeedback: feedback?.option.value,
@@ -80,7 +102,7 @@ export function InputBox({
         onRemoveFeedback?.();
       }
     }
-  }, [responding, onCancel, message, onSend, feedback, onRemoveFeedback]);
+  }, [responding, onCancel, message, onSend, onSubmit, feedback, onRemoveFeedback, selectedPersonaId]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -160,6 +182,9 @@ export function InputBox({
                   planning. This is useful for researches related to ongoing
                   events and news.
                 </p>
+                <p className="mt-2">
+                  Selected Mode: {selectedPersonaId}
+                </p>
               </div>
             }
           >
@@ -170,9 +195,10 @@ export function InputBox({
               )}
               variant="outline"
               size="lg"
-              onClick={() =>
-                setEnableBackgroundInvestigation(!backgroundInvestigation)
-              }
+              onClick={() => {
+                setEnableBackgroundInvestigation(!backgroundInvestigation);
+                console.log("Current selected persona:", selectedPersonaId);
+              }}
             >
               <Detective /> Investigation
             </Button>
@@ -220,4 +246,3 @@ export function InputBox({
     </div>
   );
 }
-
