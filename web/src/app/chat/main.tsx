@@ -35,11 +35,11 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
   const handleSubmit = (value: string) => {
     // Log the selected persona ID for debugging
     console.log("Submitting with selected persona:", selectedPersonaId);
-    sendMessage(value);
+    void sendMessage(value);
   };
 
   const handleInterrupt = (feedback: string) => {
-    sendMessage(undefined, { interruptFeedback: feedback });
+    void sendMessage(undefined, { interruptFeedback: feedback });
   };
 
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -91,3 +91,4 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
     </main>
   );
 }
+

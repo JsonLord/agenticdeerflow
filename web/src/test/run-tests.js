@@ -1,22 +1,17 @@
-// Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
-// SPDX-License-Identifier: MIT
+import { runApplicationTests } from './application-test.js';
 
-import { runAllTests } from './application-test.js';
-
-async function main() {
-  console.log('Running all tests...');
+async function runAllTests() {
+  console.log('Starting tests...');
   
   try {
-    const results = await runAllTests();
+    // Run application tests
+    const appTestsPassed = await runApplicationTests();
     
-    console.log('\n=== Test Results ===');
-    console.log(`LLM Config Test: ${results.llmConfigTest ? 'PASSED' : 'FAILED'}`);
-    console.log(`Settings Store Test: ${results.settingsStoreTest ? 'PASSED' : 'FAILED'}`);
-    console.log(`Main Store Test: ${results.mainStoreTest ? 'PASSED' : 'FAILED'}`);
-    console.log(`MCP Settings Test: ${results.mcpSettingsTest ? 'PASSED' : 'FAILED'}`);
-    console.log(`All Tests: ${results.allPassed ? 'PASSED' : 'FAILED'}`);
-    
-    if (!results.allPassed) {
+    if (appTestsPassed) {
+      console.log('All tests passed!');
+      process.exit(0);
+    } else {
+      console.error('Some tests failed!');
       process.exit(1);
     }
   } catch (error) {
@@ -25,5 +20,5 @@ async function main() {
   }
 }
 
-main();
+runAllTests();
 
