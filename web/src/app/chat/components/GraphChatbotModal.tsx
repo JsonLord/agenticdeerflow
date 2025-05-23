@@ -1,198 +1,218 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { Loader2, Send, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
 } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Send, Loader2 } from "lucide-react";
-import { useStore } from "~/core/store"; // To get the threadId
+import { ScrollArea } from "~/components/ui/scroll-area";
+import { useStore } from "~/core/store";
 
 interface GraphChatbotModalProps {
   isOpen: boolean;
   onClose: () => void;
-  threadId?: string; // Prop for display, actual threadId for API comes from store
+  threadId?: string;
 }
 
-interface ChatMessage {
+interface Message {
   id: string;
-  sender: 'user' | 'bot';
-  text: string;
-  isLoading?: boolean;
-  isError?: boolean;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
 }
 
 export const GraphChatbotModal: React.FC<GraphChatbotModalProps> = ({
   isOpen,
   onClose,
-  threadId: displayThreadId, // Renamed to avoid confusion
+  threadId,
 }) => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        "Hello! I'm your knowledge graph assistant. Ask me anything about the current research graph, and I'll help you understand the connections and insights.",
+      timestamp: new Date(),
+    },
+  ]);
   const [inputValue, setInputValue] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // For overall API call loading state
-  
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const threadIdFromStore = useStore((state) => state.threadId);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages]);
-
-  const handleSendMessage = useCallback(async () => {
-    if (inputValue.trim() === "" || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      sender: 'user',
-      text: inputValue,
-    };
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputValue;
-    setInputValue("");
-    setIsLoading(true);
-
-    const botLoadingMessageId = `bot-loading-${Date.now()}`;
-    setMessages(prev => [...prev, { id: botLoadingMessageId, sender: 'bot', text: "Thinking...", isLoading: true }]);
-
-    try {
-      if (!threadIdFromStore) {
-        throw new Error("Thread ID is not available.");
-      }
-
-      const response = await fetch('/api/graph_chatbot/query', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          thread_id: threadIdFromStore,
-          user_question: currentInput,
-        }),
-      });
-
-      setMessages(prev => prev.filter(msg => msg.id !== botLoadingMessageId)); // Remove loading message
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Failed to get a response from the chatbot." }));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-      }
-
-      const responseData: { answer: string } = await response.json();
-      const botMessage: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        sender: 'bot',
-        text: responseData.answer,
-      };
-      setMessages(prev => [...prev, botMessage]);
-
-    } catch (error) {
-      console.error("Graph chatbot API error:", error);
-      setMessages(prev => prev.filter(msg => msg.id !== botLoadingMessageId)); // Remove loading message
-      const errorMessage: ChatMessage = {
-        id: `bot-error-${Date.now()}`,
-        sender: 'bot',
-        text: error instanceof Error ? error.message : "Sorry, I couldn't process your question.",
-        isError: true,
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [inputValue, isLoading, threadIdFromStore]);
-
-  // Reset messages when modal is closed or threadId changes
+  // Scroll to bottom whenever messages change
   useEffect(() => {
-    if (!isOpen) {
-      setMessages([]);
-      setInputValue("");
-      setIsLoading(false);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [isOpen]);
 
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
 
-  if (!isOpen) {
-    return null;
-  }
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: inputValue,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setIsLoading(true);
+
+    try {
+      // Use the thread ID from props or fall back to the one from store
+      const effectiveThreadId = threadId ?? threadIdFromStore;
+      
+      if (!effectiveThreadId) {
+        throw new Error("No thread ID available");
+      }
+
+      const response = await fetch("/api/graph_chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          thread_id: effectiveThreadId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: data.response ?? "I'm sorry, I couldn't process that request.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error sending message to graph chatbot:", error);
+      
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, I encountered an error processing your request. Please try again later.",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSendMessage();
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
-      <DialogContent className="sm:max-w-[600px] h-[70vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Chat about Workflow Graph</DialogTitle>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <DialogTitle>Knowledge Graph Chat</DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
-        
-        <div className="flex-grow overflow-auto p-4 border rounded-md my-4 space-y-3 flex flex-col bg-muted/20">
-          {messages.length === 0 ? (
-            <p className="text-center text-muted-foreground m-auto">
-              Ask a question about the current workflow graph.
-              {displayThreadId && <span className="block text-xs mt-1">(Thread: {displayThreadId})</span>}
-            </p>
-          ) : (
-            messages.map((msg) => (
+
+        <ScrollArea className="flex-grow p-4">
+          <div className="space-y-4">
+            {messages.map((message) => (
               <div
-                key={msg.id}
-                className={`p-3 rounded-lg max-w-[85%] break-words shadow-sm ${
-                  msg.sender === 'user' 
-                    ? 'bg-blue-600 text-white self-end ml-auto' 
-                    : msg.isError 
-                      ? 'bg-red-100 text-red-700 self-start mr-auto'
-                      : 'bg-white text-gray-800 self-start mr-auto border border-gray-200'
+                key={message.id}
+                className={`flex ${
+                  message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                {msg.isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>{msg.text}</span>
-                  </div>
-                ) : (
-                  msg.text
-                )}
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-xs opacity-70 mt-1">
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-lg p-3 bg-muted">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
 
-        <div className="flex items-center space-x-2 p-2 border-t">
-          <Input
-            type="text"
-            placeholder="Ask about the graph..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            className="flex-grow"
-            disabled={isLoading}
-          />
-          <Button onClick={handleSendMessage} size="icon" aria-label="Send message" disabled={isLoading || inputValue.trim() === ""}>
-            {isLoading && messages.some(m => m.isLoading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        <DialogFooter className="sm:justify-end mt-2">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Close
+        <div className="p-4 border-t mt-auto">
+          <div className="flex gap-2">
+            <Input
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about the knowledge graph..."
+              disabled={isLoading}
+              className="flex-grow"
+            />
+            <Button
+              onClick={() => void handleSendMessage()}
+              disabled={!inputValue.trim() || isLoading}
+              size="icon"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
-          </DialogClose>
-        </DialogFooter>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 };
+

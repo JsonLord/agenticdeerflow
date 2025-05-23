@@ -4,10 +4,10 @@
 "use client";
 
 import { GithubOutlined } from "@ant-design/icons";
+import { Lightbulb, MessageSquareText, Spline } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { Spline, MessageSquareText, Lightbulb } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { useStore } from "~/core/store";
@@ -16,9 +16,10 @@ import { Logo } from "../../components/deer-flow/logo";
 import { ThemeToggle } from "../../components/deer-flow/theme-toggle";
 import { Tooltip } from "../../components/deer-flow/tooltip";
 import { SettingsDialog } from "../settings/dialogs/settings-dialog";
-import { KnowledgeGraphModal } from "./components/knowledge-graph-modal";
-import { GraphChatbotModal } from "./components/GraphChatbotModal";
+
 import { CoordinatorFeedbackModal } from "./components/CoordinatorFeedbackModal";
+import { GraphChatbotModal } from "./components/GraphChatbotModal";
+import { KnowledgeGraphModal } from "./components/knowledge-graph-modal";
 // import { ExpertFeedbackModal } from "./components/ExpertFeedbackModal"; // Will be imported in next task
 
 const Main = dynamic(() => import("./main"), {
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
   const [isGraphChatbotModalOpen, setIsGraphChatbotModalOpen] = useState(false);
   const [isCoordinatorFeedbackModalOpen, setIsCoordinatorFeedbackModalOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isExpertFeedbackModalOpen, setIsExpertFeedbackModalOpen] = useState(false);
   const threadId = useStore((state) => state.threadId);
 
@@ -118,3 +120,4 @@ export default function HomePage() {
     </div>
   );
 }
+

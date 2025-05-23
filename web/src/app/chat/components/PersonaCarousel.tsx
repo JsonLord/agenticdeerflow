@@ -1,69 +1,80 @@
 "use client";
 
-import React from "react";
+import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
+
+import { coordinatorPersonas } from "~/app/chat/personas";
 import { useStore } from "~/core/store";
-import { coordinatorPersonas, Persona } from "~/app/chat/personas";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 
-export function PersonaCarousel() {
-  const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
-  const setSelectedCoordinatorPersona = useStore((state) => state.setSelectedCoordinatorPersona);
+interface PersonaCarouselProps {
+  onPersonaSelect?: (personaId: string) => void;
+}
 
-  const handlePersonaSelect = (personaId: string) => {
-    setSelectedCoordinatorPersona(personaId);
+export const PersonaCarousel: React.FC<PersonaCarouselProps> = ({
+  onPersonaSelect,
+}) => {
+  const selectedPersonaId = useStore((state) => state.selectedCoordinatorPersona);
+  const setSelectedPersonaId = useStore((state) => state.setSelectedCoordinatorPersona);
+  
+  // Local state to track the selected card for animation purposes
+  const [selectedCardId, setSelectedCardId] = useState<string>(selectedPersonaId);
+
+  // Sync local state with store when the store changes
+  useEffect(() => {
+    setSelectedCardId(selectedPersonaId);
+  }, [selectedPersonaId]);
+
+  const handleCardClick = (personaId: string) => {
+    // Update local state for immediate UI feedback
+    setSelectedCardId(personaId);
+    
+    // Update the global store
+    setSelectedPersonaId(personaId);
+    
+    // Call the callback if provided
+    if (onPersonaSelect) {
+      onPersonaSelect(personaId);
+    }
+    
+    console.log(`Selected persona: ${personaId}`);
   };
 
-  if (!coordinatorPersonas || coordinatorPersonas.length === 0) {
-    return null; // Don't render if no personas are defined
-  }
-
   return (
-    <div className="w-full overflow-x-auto py-2 px-1">
-      <div className="flex space-x-4">
-        {coordinatorPersonas.map((persona: Persona) => {
-          const isSelected = persona.id === selectedPersonaId;
-          return (
-            <Card
-              key={persona.id}
-              onClick={() => handlePersonaSelect(persona.id)}
-              className={cn(
-                "min-w-[200px] max-w-[250px] cursor-pointer transition-all hover:shadow-lg",
-                isSelected
-                  ? "border-primary ring-2 ring-primary shadow-md"
-                  : "border-border",
-              )}
-            >
-              <CardHeader className="p-4">
-                <div className="flex items-center space-x-3">
-                  {persona.icon && (
-                    <persona.icon
-                      className={cn(
-                        "h-6 w-6",
-                        isSelected ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                  )}
-                  <CardTitle className={cn("text-sm font-semibold leading-none", isSelected ? "text-primary" : "")}>
-                    {persona.name}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <CardDescription className="text-xs line-clamp-3">
-                  {persona.description}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <div className="w-full overflow-hidden">
+      <div className="flex space-x-4 overflow-x-auto pb-4 pt-2 px-2 scrollbar-hide">
+        {coordinatorPersonas.map((persona) => (
+          <motion.div
+            key={persona.id}
+            className={cn(
+              "flex-shrink-0 cursor-pointer rounded-lg border p-4 shadow-sm transition-all",
+              "hover:shadow-md",
+              selectedCardId === persona.id
+                ? "border-primary bg-primary/5"
+                : "border-border bg-card"
+            )}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => handleCardClick(persona.id)}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex flex-col items-start space-y-2">
+              <div className="flex items-center space-x-2">
+                {persona.icon && (
+                  <span className="text-xl">{persona.icon}</span>
+                )}
+                <h3 className="font-medium">{persona.name}</h3>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-[200px]">
+                {persona.description}
+              </p>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
-}
+};
+

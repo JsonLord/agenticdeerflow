@@ -10,13 +10,12 @@ import {
   useLastInterruptMessage,
   useStore,
 } from "~/core/store";
-import { parseJSON } from "~/core/utils";
 
 import { ConversationStarter } from "./components/conversation-starter";
 import { InputBox } from "./components/input-box";
 import { MessageListView } from "./components/message-list-view";
-import { ResearchBlock } from "./components/research-block";
 import { PersonaCarouselFrame } from "./components/PersonaCarouselFrame";
+import { ResearchBlock } from "./components/research-block";
 
 interface MainProps {
   onOpenCoordinatorFeedbackModal?: () => void;
@@ -32,17 +31,10 @@ export default function Main({ onOpenCoordinatorFeedbackModal }: MainProps) {
   const waitingForFeedback = lastInterruptMessage != null;
   const feedbackContext = lastInterruptMessage?.interruptFeedback;
 
-  // This function will be used for both the InputBox and ConversationStarter
   const handleSubmit = (value: string) => {
     // Log the selected persona ID for debugging
     console.log("Submitting with selected persona:", selectedPersonaId);
-    console.log("Message content:", value);
-    
-    if (value && value.trim() !== "") {
-      void sendMessage(value);
-    } else {
-      console.warn("Attempted to submit empty message");
-    }
+    void sendMessage(value);
   };
 
   const handleInterrupt = (feedback: string) => {
