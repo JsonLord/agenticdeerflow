@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import React from "react";
+import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUp, ThumbsUp, X } from "lucide-react";
 import {
@@ -247,3 +247,4 @@ export function InputBox({
     </div>
   );
 }
+
