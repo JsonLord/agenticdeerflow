@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import * as React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { InputBox } from './input-box';
 
 // Mock the dependencies
 vi.mock('framer-motion', () => {
   return {
     motion: {
-      div: ({ children, ...props }: any) => React.createElement('div', props, children),
+      div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => React.createElement('div', props, children),
     },
-    AnimatePresence: ({ children }: any) => children,
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   };
 });
 
@@ -29,7 +30,7 @@ vi.mock('~/components/deer-flow/icons/detective', () => {
 
 vi.mock('~/components/deer-flow/tooltip', () => {
   return {
-    Tooltip: ({ children, title }: any) => (
+    Tooltip: ({ children, title }: { children: React.ReactNode, title: string | React.ReactNode }) => (
       React.createElement('div', { title: typeof title === 'string' ? title : 'tooltip' }, children)
     ),
   };
@@ -37,7 +38,12 @@ vi.mock('~/components/deer-flow/tooltip', () => {
 
 vi.mock('~/components/ui/button', () => {
   return {
-    Button: ({ children, onClick, className, 'aria-label': ariaLabel }: any) => (
+    Button: ({ children, onClick, className, 'aria-label': ariaLabel }: {
+      children: React.ReactNode,
+      onClick?: () => void,
+      className?: string,
+      'aria-label'?: string
+    }) => (
       React.createElement('button', { 
         onClick, 
         className, 
@@ -63,7 +69,7 @@ vi.mock('~/core/store', () => {
 
 vi.mock('~/lib/utils', () => {
   return {
-    cn: (...classes: any[]) => classes.filter(Boolean).join(' '),
+    cn: (...classes: string[]) => classes.filter(Boolean).join(' '),
   };
 });
 
@@ -104,4 +110,3 @@ describe('InputBox', () => {
     expect(mockOnSend).toHaveBeenCalledWith('Hello world', { interruptFeedback: undefined });
   });
 });
-

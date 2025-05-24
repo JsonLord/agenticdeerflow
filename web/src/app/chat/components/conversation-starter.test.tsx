@@ -1,13 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import * as React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { ConversationStarter } from './conversation-starter';
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => {
   return {
     motion: {
-      li: ({ children, ...props }: any) => React.createElement('li', props, children),
+      li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => React.createElement('li', props, children),
     },
   };
 });
@@ -15,7 +16,7 @@ vi.mock('framer-motion', () => {
 // Mock the utils
 vi.mock('~/lib/utils', () => {
   return {
-    cn: (...classes: any[]) => classes.filter(Boolean).join(' '),
+    cn: (...classes: string[]) => classes.filter(Boolean).join(' '),
   };
 });
 
@@ -54,4 +55,3 @@ describe('ConversationStarter', () => {
     );
   });
 });
-
