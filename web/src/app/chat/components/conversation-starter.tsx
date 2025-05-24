@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import React from "react";
+import * as React from "react";
 import { motion } from "framer-motion";
 
 import { cn } from "~/lib/utils";
@@ -12,6 +12,7 @@ const questions = [
   "How many liters of water are required to produce 1 kg of beef?",
   "How many times faster is the speed of light compared to the speed of sound?",
 ];
+
 export function ConversationStarter({
   className,
   onSend,
@@ -65,3 +66,4 @@ export function ConversationStarter({
     </div>
   );
 }
+
