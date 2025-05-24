@@ -1,0 +1,41 @@
+<!-- mode-selection.component.html -->
+<div class="app-container">
+  <h1>Mode Selection Example (Angular)</h1>
+  
+  <!-- Mode Selection Cards -->
+  <div class="mode-cards-container">
+    <div 
+      *ngFor="let mode of modes" 
+      class="mode-card"
+      [ngClass]="{'selected': selectedMode === mode.id}"
+      (click)="handleModeSelect(mode.id)"
+    >
+      <h3>{{ mode.name }}</h3>
+      <p>{{ mode.description }}</p>
+    </div>
+  </div>
+  
+  <!-- Query Input and Investigation Button -->
+  <div class="query-container">
+    <input
+      type="text"
+      [(ngModel)]="query"
+      placeholder="Enter your query here..."
+      class="query-input"
+    />
+    <button 
+      (click)="handleInvestigation()"
+      class="investigation-button"
+      [disabled]="isQueryEmpty"
+    >
+      Investigation
+    </button>
+  </div>
+  
+  <!-- Display current state (for demonstration) -->
+  <div class="current-state">
+    <p><strong>Current Mode:</strong> {{ currentModeName }}</p>
+    <p><strong>Current Query:</strong> {{ query || '(empty)' }}</p>
+  </div>
+</div>
+

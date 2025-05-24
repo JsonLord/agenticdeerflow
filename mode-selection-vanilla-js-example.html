@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mode Selection Example (Vanilla JS)</title>
+  <link rel="stylesheet" href="mode-selection-vanilla-js-example.css">
+</head>
+<body>
+  <div class="app-container">
+    <h1>Mode Selection Example (Vanilla JS)</h1>
+    
+    <!-- Mode Selection Cards -->
+    <div id="mode-cards-container" class="mode-cards-container">
+      <!-- Cards will be dynamically inserted here by JavaScript -->
+    </div>
+    
+    <!-- Query Input and Investigation Button -->
+    <div class="query-container">
+      <input
+        id="query-input"
+        type="text"
+        placeholder="Enter your query here..."
+        class="query-input"
+        oninput="updateCurrentState()"
+      />
+      <button 
+        id="investigation-button"
+        class="investigation-button"
+      >
+        Investigation
+      </button>
+    </div>
+    
+    <!-- Display current state (for demonstration) -->
+    <div class="current-state">
+      <p><strong>Current Mode:</strong> <span id="current-mode"></span></p>
+      <p><strong>Current Query:</strong> <span id="current-query">(empty)</span></p>
+    </div>
+  </div>
+  
+  <script src="mode-selection-vanilla-js-example.js"></script>
+</body>
+</html>
+
