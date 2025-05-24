@@ -1,15 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import * as React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { InputBox } from './input-box';
 
 // Mock the dependencies
 vi.mock('framer-motion', () => {
   return {
     motion: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       div: ({ children, ...props }: any) => React.createElement('div', props, children),
     },
-    AnimatePresence: ({ children }: any) => children,
+    AnimatePresence: ({ children }: React.PropsWithChildren) => children,
   };
 });
 
@@ -29,6 +31,7 @@ vi.mock('~/components/deer-flow/icons/detective', () => {
 
 vi.mock('~/components/deer-flow/tooltip', () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Tooltip: ({ children, title }: any) => (
       React.createElement('div', { title: typeof title === 'string' ? title : 'tooltip' }, children)
     ),
@@ -37,6 +40,7 @@ vi.mock('~/components/deer-flow/tooltip', () => {
 
 vi.mock('~/components/ui/button', () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Button: ({ children, onClick, className, 'aria-label': ariaLabel }: any) => (
       React.createElement('button', { 
         onClick, 
@@ -63,6 +67,7 @@ vi.mock('~/core/store', () => {
 
 vi.mock('~/lib/utils', () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cn: (...classes: any[]) => classes.filter(Boolean).join(' '),
   };
 });
@@ -104,4 +109,3 @@ describe('InputBox', () => {
     expect(mockOnSend).toHaveBeenCalledWith('Hello world', { interruptFeedback: undefined });
   });
 });
-
