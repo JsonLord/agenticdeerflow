@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import * as React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { ConversationStarter } from './conversation-starter';
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => {
   return {
     motion: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       li: ({ children, ...props }: any) => React.createElement('li', props, children),
     },
   };
@@ -15,6 +17,7 @@ vi.mock('framer-motion', () => {
 // Mock the utils
 vi.mock('~/lib/utils', () => {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cn: (...classes: any[]) => classes.filter(Boolean).join(' '),
   };
 });
@@ -54,4 +57,3 @@ describe('ConversationStarter', () => {
     );
   });
 });
-

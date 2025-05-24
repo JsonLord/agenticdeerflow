@@ -50,7 +50,7 @@ def get_prompt_template(
                 # Get the template path from the loader
                 template_path = env.loader.get_source(env, persona_specific_path)[1]
                 # Read the template file directly
-                with open(template_path, 'r') as f:
+                with open(template_path, "r") as f:
                     return f.read()
             except (TemplateNotFound, FileNotFoundError):
                 # print(f"Persona template '{persona_specific_path}' not found. Falling back to default.") # Debug
@@ -61,7 +61,7 @@ def get_prompt_template(
             # Get the template path from the loader
             template_path = env.loader.get_source(env, default_coordinator_path)[1]
             # Read the template file directly
-            with open(template_path, 'r') as f:
+            with open(template_path, "r") as f:
                 return f.read()
         except (TemplateNotFound, FileNotFoundError) as e_default:
             raise ValueError(
@@ -75,7 +75,7 @@ def get_prompt_template(
             # Get the template path from the loader
             template_path = env.loader.get_source(env, template_path_to_try)[1]
             # Read the template file directly
-            with open(template_path, 'r') as f:
+            with open(template_path, "r") as f:
                 return f.read()
         except (TemplateNotFound, FileNotFoundError) as e:
             raise ValueError(

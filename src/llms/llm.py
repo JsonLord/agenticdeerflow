@@ -31,7 +31,9 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
         raise ValueError("LLM configuration dictionary must include a 'provider' key.")
 
     provider = provider.lower()
-    model_name = config_copy.pop("model", config_copy.pop("model_name", None))  # Support both model and model_name
+    model_name = config_copy.pop(
+        "model", config_copy.pop("model_name", None)
+    )  # Support both model and model_name
 
     # Common parameters that might be present and can be passed to most models
     # Filter them out if they are None to avoid passing None as default
@@ -100,7 +102,9 @@ def _create_llm_from_config_dict(config_dict: Dict[str, Any]) -> BaseChatModel:
 
         elif provider == "ollama":
             if not model_name:
-                raise ValueError(f"Missing 'model' or 'model_name' in '{provider}' configuration.")
+                raise ValueError(
+                    f"Missing 'model' or 'model_name' in '{provider}' configuration."
+                )
 
             base_url = config_copy.pop(
                 "base_url", None
@@ -193,7 +197,9 @@ def get_llm_by_type(
         logger.info(f"Cached LLM for type '{llm_type}'.")
         return llm
     except Exception as e:
-        logger.warning(f"Error loading LLM from conf.yaml: {str(e)}. Using default configuration.")
+        logger.warning(
+            f"Error loading LLM from conf.yaml: {str(e)}. Using default configuration."
+        )
         # Default to OpenAI with environment variables
         default_config = {
             "provider": "openai",
@@ -208,7 +214,9 @@ def get_llm_by_type(
 try:
     basic_llm: BaseChatModel = get_llm_by_type("basic")
 except Exception as e:
-    logger.warning(f"Failed to initialize basic_llm: {str(e)}. Will be initialized on first use.")
+    logger.warning(
+        f"Failed to initialize basic_llm: {str(e)}. Will be initialized on first use."
+    )
     basic_llm = None
 
 # In the future, we will use reasoning_llm and vl_llm for different purposes

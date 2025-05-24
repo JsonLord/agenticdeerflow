@@ -1,8 +1,8 @@
 // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
 // SPDX-License-Identifier: MIT
 
-import * as React from "react";
 import { motion } from "framer-motion";
+import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
@@ -66,4 +66,3 @@ export function ConversationStarter({
     </div>
   );
 }
-
